@@ -1,1 +1,2 @@
-pub mod dynamic_bicycle;
+pub mod bicycle_model;
+pub mod physics;
