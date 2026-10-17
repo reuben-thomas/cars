@@ -5,25 +5,17 @@ pub mod visual;
 pub use dynamics::{Brakes, Drivetrain, Params};
 
 use crate::bicycle_model;
+use bevy::math::Isometry2d;
 use bevy::prelude::*;
 use dynamics::Dynamics;
-use visual::debug;
 
 pub struct CarPlugin;
 
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<debug::DebugGizmos>()
+        app.add_plugins(visual::plugin)
             .add_systems(FixedUpdate, (keyboard::drive, step).chain())
-            .add_systems(
-                Update,
-                (
-                    keyboard::reset,
-                    debug::toggle,
-                    debug::draw,
-                    (debug::spawn_text, debug::update_text).chain(),
-                ),
-            );
+            .add_systems(Update, keyboard::reset);
     }
 }
 
@@ -59,7 +51,14 @@ impl Default for Params {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Axle {
+    Front,
+    Rear,
+}
+
 #[derive(Component, Clone, Debug)]
+#[require(Transform, Visibility)]
 pub struct Car {
     dynamics: Dynamics,
 }
@@ -98,9 +97,28 @@ impl Car {
         self.dynamics.model()
     }
 
-    /// Speed of the CG [m/s].
     pub fn speed(&self) -> f32 {
         self.state().velocity.length()
+    }
+
+    pub fn pose(&self) -> Isometry2d {
+        let state = self.state();
+        Isometry2d::new(state.position, state.heading)
+    }
+
+    pub fn axle_position(&self, axle: Axle) -> Vec2 {
+        let params = &self.params().bicycle;
+        match axle {
+            Axle::Front => Vec2::new(params.cg_to_front_axle, 0.0),
+            Axle::Rear => Vec2::new(-params.cg_to_rear_axle, 0.0),
+        }
+    }
+
+    pub fn wheel_rotation(&self, axle: Axle) -> Rot2 {
+        match axle {
+            Axle::Front => Rot2::radians(self.input().steering_angle),
+            Axle::Rear => Rot2::IDENTITY,
+        }
     }
 }
 

@@ -1,14 +1,11 @@
 use super::Dimensions;
 use crate::bicycle_model::{Model, dynamic};
-use crate::car::Car;
+use crate::car::{Axle, Car};
 use crate::view::to_screen;
 use bevy::prelude::*;
 use bevy::text::FontSize;
+use std::collections::VecDeque;
 
-/// Travel time represented by velocity arrows [s].
-const VELOCITY_ARROW_TIME: f32 = 0.25;
-/// Length of force arrows per unit force [m/N].
-const FORCE_ARROW_SCALE: f32 = 1.0 / 2000.0;
 /// Maximum length of an arrow head [m].
 const ARROW_HEAD: f32 = 0.3;
 /// Half-size of the CG marker [m].
@@ -23,12 +20,76 @@ const VELOCITY: Color = Color::srgb(0.1, 1.0, 0.3);
 const FRAME: Color = Color::srgb(0.9, 0.9, 0.9);
 const DRAG: Color = Color::srgb(1.0, 0.3, 0.8);
 const TEXT: Color = Color::srgb(0.85, 0.9, 0.95);
+const TRAIL_ALPHA: f32 = 0.6;
 
 const FRONT_WHEEL: Color = Color::srgb(1.0, 0.85, 0.1);
 const REAR_WHEEL: Color = Color::srgb(0.1, 0.8, 1.0);
 
+pub struct CarDebugPlugin {
+    pub enabled: bool,
+    pub gizmos: CarGizmos,
+}
+
+impl Default for CarDebugPlugin {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            gizmos: CarGizmos::default(),
+        }
+    }
+}
+
+impl Plugin for CarDebugPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_gizmo_config(
+            self.gizmos.clone(),
+            GizmoConfig {
+                enabled: self.enabled,
+                ..default()
+            },
+        )
+        .add_systems(
+            Update,
+            (
+                toggle,
+                spawn,
+                (record_trail, draw).run_if(enabled),
+                update_text,
+            )
+                .chain(),
+        );
+    }
+}
+
+#[derive(Clone, Debug, Reflect, GizmoConfigGroup)]
+pub struct CarGizmos {
+    pub velocity: bool,
+    pub chassis: bool,
+    pub bicycle_model: bool,
+    pub text: bool,
+    pub trail: bool,
+    pub velocity_arrow_time: f32,
+    pub force_arrow_scale: f32,
+    pub trail_duration: f32,
+}
+
+impl Default for CarGizmos {
+    fn default() -> Self {
+        Self {
+            velocity: true,
+            chassis: true,
+            bicycle_model: true,
+            text: true,
+            trail: true,
+            velocity_arrow_time: 0.25,
+            force_arrow_scale: 1.0 / 2000.0,
+            trail_duration: 3.0,
+        }
+    }
+}
+
 /// Axle state for drawing, in the world frame.
-struct Axle {
+struct AxleState {
     position: Vec2,
     rotation: Rot2,
     longitudinal_force: f32,
@@ -39,26 +100,24 @@ struct Axle {
 #[derive(Component)]
 pub struct DebugText(Entity);
 
-#[derive(Resource)]
-pub struct DebugGizmos {
-    pub velocity: bool,
-    pub chassis: bool,
-    pub bicycle_model: bool,
-    pub text: bool,
+#[derive(Component, Default)]
+pub struct Trail(VecDeque<TrailPoint>);
+
+struct TrailPoint {
+    time: f32,
+    front: Vec2,
+    rear: Vec2,
 }
 
-impl Default for DebugGizmos {
-    fn default() -> Self {
-        Self {
-            velocity: true,
-            chassis: true,
-            bicycle_model: true,
-            text: true,
-        }
+fn enabled(store: Res<GizmoConfigStore>) -> bool {
+    store.config::<CarGizmos>().0.enabled
+}
+
+fn toggle(keys: Res<ButtonInput<KeyCode>>, mut store: ResMut<GizmoConfigStore>) {
+    let (config, debug) = store.config_mut::<CarGizmos>();
+    if keys.just_pressed(KeyCode::Backquote) {
+        config.enabled = !config.enabled;
     }
-}
-
-pub fn toggle(keys: Res<ButtonInput<KeyCode>>, mut debug: ResMut<DebugGizmos>) {
     if keys.just_pressed(KeyCode::F1) {
         debug.velocity = !debug.velocity;
     }
@@ -71,10 +130,14 @@ pub fn toggle(keys: Res<ButtonInput<KeyCode>>, mut debug: ResMut<DebugGizmos>) {
     if keys.just_pressed(KeyCode::F4) {
         debug.text = !debug.text;
     }
+    if keys.just_pressed(KeyCode::F5) {
+        debug.trail = !debug.trail;
+    }
 }
 
-pub fn spawn_text(mut commands: Commands, cars: Query<Entity, Added<Car>>) {
+fn spawn(mut commands: Commands, cars: Query<Entity, Added<Car>>) {
     for car in &cars {
+        commands.entity(car).insert(Trail::default());
         commands.spawn((
             DebugText(car),
             Text2d::default(),
@@ -88,20 +151,49 @@ pub fn spawn_text(mut commands: Commands, cars: Query<Entity, Added<Car>>) {
     }
 }
 
-pub fn update_text(
-    debug: Res<DebugGizmos>,
+fn record_trail(
+    time: Res<Time>,
+    store: Res<GizmoConfigStore>,
+    mut cars: Query<(&Car, &mut Trail)>,
+) {
+    let duration = store.config::<CarGizmos>().1.trail_duration;
+    let now = time.elapsed_secs();
+    for (car, mut trail) in &mut cars {
+        let pose = car.pose();
+        trail.0.push_back(TrailPoint {
+            time: now,
+            front: pose.transform_point(car.axle_position(Axle::Front)),
+            rear: pose.transform_point(car.axle_position(Axle::Rear)),
+        });
+        while trail
+            .0
+            .front()
+            .is_some_and(|point| now - point.time > duration)
+        {
+            trail.0.pop_front();
+        }
+    }
+}
+
+fn update_text(
+    store: Res<GizmoConfigStore>,
     cars: Query<&Car>,
     mut texts: Query<(&DebugText, &mut Text2d, &mut Transform, &mut Visibility)>,
 ) {
+    let (config, debug) = store.config::<CarGizmos>();
+    let shown = config.enabled && debug.text;
     for (DebugText(entity), mut text, mut transform, mut visibility) in &mut texts {
         let Ok(car) = cars.get(*entity) else {
             continue;
         };
-        *visibility = if debug.text {
+        visibility.set_if_neq(if shown {
             Visibility::Inherited
         } else {
             Visibility::Hidden
-        };
+        });
+        if !shown {
+            continue;
+        }
 
         let state = car.state();
         transform.translation = (to_screen(state.position) + TEXT_OFFSET).extend(1.0);
@@ -125,63 +217,81 @@ pub fn update_text(
     }
 }
 
-pub fn draw(mut gizmos: Gizmos, debug: Res<DebugGizmos>, cars: Query<(&Car, &Dimensions)>) {
-    for (car, dimensions) in &cars {
+fn draw(mut gizmos: Gizmos<CarGizmos>, cars: Query<(&Car, &Dimensions, &Trail)>) {
+    let debug = gizmos.config_ext.clone();
+    for (car, dimensions, trail) in &cars {
+        if debug.trail {
+            draw_trail(&mut gizmos, trail);
+        }
         if debug.chassis {
             draw_chassis(&mut gizmos, car, dimensions);
         }
         if debug.bicycle_model {
-            draw_bicycle_model(&mut gizmos, car, dimensions);
+            draw_bicycle_model(&mut gizmos, car, dimensions, debug.force_arrow_scale);
         }
         if debug.velocity {
-            draw_velocity(&mut gizmos, car);
+            draw_velocity(&mut gizmos, car, debug.velocity_arrow_time);
         }
     }
 }
 
-fn draw_velocity(gizmos: &mut Gizmos, car: &Car) {
+fn draw_trail(gizmos: &mut Gizmos<CarGizmos>, trail: &Trail) {
+    let points = &trail.0;
+    gizmos.linestrip_2d(
+        points.iter().map(|point| to_screen(point.front)),
+        FRONT_WHEEL.with_alpha(TRAIL_ALPHA),
+    );
+    gizmos.linestrip_2d(
+        points.iter().map(|point| to_screen(point.rear)),
+        REAR_WHEEL.with_alpha(TRAIL_ALPHA),
+    );
+}
+
+fn draw_velocity(gizmos: &mut Gizmos<CarGizmos>, car: &Car, arrow_time: f32) {
     let state = car.state();
     let velocity = state.heading * state.velocity;
     arrow(
         gizmos,
         state.position,
-        state.position + velocity * VELOCITY_ARROW_TIME,
+        state.position + velocity * arrow_time,
         VELOCITY,
     );
 }
 
-fn draw_chassis(gizmos: &mut Gizmos, car: &Car, dimensions: &Dimensions) {
-    let params = &car.params().bicycle;
-    let (lf, lr) = (params.cg_to_front_axle, params.cg_to_rear_axle);
-    let heading = car.state().heading;
-    let front_wheel = heading * Rot2::radians(car.input().steering_angle);
-    let wheel = Vec2::new(2.0 * dimensions.wheel_radius, dimensions.wheel_width);
-
-    let body_centre = lf + dimensions.front_overhang - dimensions.length / 2.0;
+fn draw_chassis(gizmos: &mut Gizmos<CarGizmos>, car: &Car, dimensions: &Dimensions) {
+    let pose = car.pose();
+    let chassis = dimensions.chassis();
     rectangle(
         gizmos,
-        body_to_world(car, Vec2::new(body_centre, 0.0)),
-        heading,
-        Vec2::new(dimensions.length, dimensions.width),
+        pose.transform_point(chassis.center()),
+        pose.rotation,
+        chassis.size(),
         CHASSIS,
     );
-    // Both front wheels turn by the bicycle model's steering angle.
-    for side in [-0.5, 0.5] {
-        let front = body_to_world(car, Vec2::new(lf, side * dimensions.front_track));
-        let rear = body_to_world(car, Vec2::new(-lr, side * dimensions.rear_track));
-        rectangle(gizmos, front, front_wheel, wheel, CHASSIS);
-        rectangle(gizmos, rear, heading, wheel, CHASSIS);
+    for wheel in dimensions.wheels(car) {
+        rectangle(
+            gizmos,
+            pose.transform_point(wheel.centre),
+            pose.rotation * car.wheel_rotation(wheel.axle),
+            dimensions.wheel_size(),
+            CHASSIS,
+        );
     }
 }
 
-fn draw_bicycle_model(gizmos: &mut Gizmos, car: &Car, dimensions: &Dimensions) {
+fn draw_bicycle_model(
+    gizmos: &mut Gizmos<CarGizmos>,
+    car: &Car,
+    dimensions: &Dimensions,
+    force_scale: f32,
+) {
     let params = &car.params().bicycle;
     let state = car.state();
     let input = car.input();
-    let wheel = Vec2::new(2.0 * dimensions.wheel_radius, dimensions.wheel_width);
+    let pose = car.pose();
 
-    let front = body_to_world(car, Vec2::new(params.cg_to_front_axle, 0.0));
-    let rear = body_to_world(car, Vec2::new(-params.cg_to_rear_axle, 0.0));
+    let front = pose.transform_point(car.axle_position(Axle::Front));
+    let rear = pose.transform_point(car.axle_position(Axle::Rear));
     line(gizmos, rear, front, FRAME);
     line(
         gizmos,
@@ -204,16 +314,16 @@ fn draw_bicycle_model(gizmos: &mut Gizmos, car: &Car, dimensions: &Dimensions) {
         Model::Kinematic => (None, None),
     };
     let axles = [
-        Axle {
+        AxleState {
             position: front,
-            rotation: state.heading * Rot2::radians(input.steering_angle),
+            rotation: pose.rotation * car.wheel_rotation(Axle::Front),
             longitudinal_force: input.front_longitudinal_force,
             lateral_force: front_lateral_force,
             color: FRONT_WHEEL,
         },
-        Axle {
+        AxleState {
             position: rear,
-            rotation: state.heading,
+            rotation: pose.rotation * car.wheel_rotation(Axle::Rear),
             longitudinal_force: input.rear_longitudinal_force,
             lateral_force: rear_lateral_force,
             color: REAR_WHEEL,
@@ -222,18 +332,24 @@ fn draw_bicycle_model(gizmos: &mut Gizmos, car: &Car, dimensions: &Dimensions) {
 
     for axle in axles {
         let tip = |vector: Vec2| axle.position + vector;
-        rectangle(gizmos, axle.position, axle.rotation, wheel, axle.color);
+        rectangle(
+            gizmos,
+            axle.position,
+            axle.rotation,
+            dimensions.wheel_size(),
+            axle.color,
+        );
         arrow(
             gizmos,
             axle.position,
-            tip(axle.rotation * Vec2::X * axle.longitudinal_force * FORCE_ARROW_SCALE),
+            tip(axle.rotation * Vec2::X * axle.longitudinal_force * force_scale),
             axle.color,
         );
         if let Some(force) = axle.lateral_force {
             arrow(
                 gizmos,
                 axle.position,
-                tip(axle.rotation * Vec2::Y * force * FORCE_ARROW_SCALE),
+                tip(axle.rotation * Vec2::Y * force * force_scale),
                 axle.color,
             );
         }
@@ -244,21 +360,16 @@ fn draw_bicycle_model(gizmos: &mut Gizmos, car: &Car, dimensions: &Dimensions) {
     arrow(
         gizmos,
         state.position,
-        state.position + velocity.normalize_or_zero() * drag * FORCE_ARROW_SCALE,
+        state.position + velocity.normalize_or_zero() * drag * force_scale,
         DRAG,
     );
 }
 
-fn body_to_world(car: &Car, point: Vec2) -> Vec2 {
-    let state = car.state();
-    state.position + state.heading * point
-}
-
-fn line(gizmos: &mut Gizmos, start: Vec2, end: Vec2, color: Color) {
+fn line(gizmos: &mut Gizmos<CarGizmos>, start: Vec2, end: Vec2, color: Color) {
     gizmos.line_2d(to_screen(start), to_screen(end), color);
 }
 
-fn arrow(gizmos: &mut Gizmos, start: Vec2, end: Vec2, color: Color) {
+fn arrow(gizmos: &mut Gizmos<CarGizmos>, start: Vec2, end: Vec2, color: Color) {
     let shaft = end - start;
     let Some(direction) = shaft.try_normalize() else {
         return;
@@ -271,7 +382,13 @@ fn arrow(gizmos: &mut Gizmos, start: Vec2, end: Vec2, color: Color) {
     }
 }
 
-fn rectangle(gizmos: &mut Gizmos, centre: Vec2, rotation: Rot2, size: Vec2, color: Color) {
+fn rectangle(
+    gizmos: &mut Gizmos<CarGizmos>,
+    centre: Vec2,
+    rotation: Rot2,
+    size: Vec2,
+    color: Color,
+) {
     let half = size / 2.0;
     let corners = [
         Vec2::new(-half.x, -half.y),
