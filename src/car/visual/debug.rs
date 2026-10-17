@@ -1,7 +1,7 @@
-use crate::car::Car;
-use crate::bicycle_model::{Model, dynamic};
-use crate::view::to_screen;
 use super::Dimensions;
+use crate::bicycle_model::{Model, dynamic};
+use crate::car::Car;
+use crate::view::to_screen;
 use bevy::prelude::*;
 use bevy::text::FontSize;
 

@@ -30,8 +30,8 @@ pub fn drive(
     let max_steering_change = STEERING_RATE * time.delta_secs();
 
     for (car, mut controls) in &mut cars {
-        controls.steering += (steering_target - controls.steering)
-            .clamp(-max_steering_change, max_steering_change);
+        controls.steering +=
+            (steering_target - controls.steering).clamp(-max_steering_change, max_steering_change);
 
         // Pressing against the direction of travel brakes to a stop first.
         let braking = request * car.state().velocity.x < -DIRECTION_CHANGE_SPEED;

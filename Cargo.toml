@@ -6,8 +6,15 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.20.0", default-features = false, features = [
     "std", "async_executor", "multi_threaded", "bevy_log", "bevy_winit",
-    "bevy_core_pipeline", "bevy_sprite_render", "bevy_gizmos_render", "bevy_post_process", "x11", "wayland",
+    "bevy_core_pipeline", "bevy_sprite_render", "bevy_gizmos_render", "bevy_post_process", "x11",
     "bevy_text", "default_font",
 ] }
 bevy_ecs = { version = "0.20.0", default-features = false, features = ["std"] }
 bevy_math = { version = "0.20.0", default-features = false, features = ["std"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+bevy = { version = "0.20.0", default-features = false, features = ["web"] }
+
+[features]
+# Native Wayland backend; needs libwayland-dev and libxkbcommon-dev to build.
+wayland = ["bevy/wayland"]
