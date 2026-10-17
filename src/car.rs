@@ -1,13 +1,33 @@
 mod dynamics;
+pub mod keyboard;
+pub mod visual;
 
-pub use dynamics::Params;
+pub use dynamics::{Brakes, Drivetrain, Params};
 
 use crate::bicycle_model;
-use bevy_ecs::prelude::Component;
+use bevy::prelude::*;
 use dynamics::Dynamics;
+use visual::debug;
 
-/// Driver controls.
-#[derive(Clone, Copy, Debug, Default)]
+pub struct CarPlugin;
+
+impl Plugin for CarPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<debug::DebugGizmos>()
+            .add_systems(FixedUpdate, (keyboard::drive, step).chain())
+            .add_systems(
+                Update,
+                (
+                    keyboard::reset,
+                    debug::toggle,
+                    debug::draw,
+                    (debug::spawn_text, debug::update_text).chain(),
+                ),
+            );
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug, Default)]
 pub struct Controls {
     /// Throttle pedal [0, 1].
     pub throttle: f32,
@@ -19,24 +39,24 @@ pub struct Controls {
     pub reverse: bool,
 }
 
-impl Params {
-    pub const BMW_E30: Self = Self {
-        bicycle: bicycle_model::Params {
-            mass: 1093.3,
-            yaw_inertia: 1791.6,
-            cg_to_front_axle: 1.1562,
-            cg_to_rear_axle: 1.4227,
-            cornering_coefficient: 21.92,
-            rolling_resistance: 6.5,
-            drag_coefficient: 0.38,
-            frontal_area: 1.9,
-        },
-        max_steering: 0.46,
-        max_drive_force: 2800.0,
-        max_brake_force: 10_000.0,
-        drive_bias: 0.0,
-        brake_bias: 0.66,
-    };
+impl Default for Params {
+    fn default() -> Self {
+        Self {
+            bicycle: bicycle_model::Params {
+                mass: 1200.0,
+                yaw_inertia: 2000.0,
+                cg_to_front_axle: 1.3,
+                cg_to_rear_axle: 1.3,
+                cornering_coefficient: 8.0,
+                rolling_resistance: 6.0,
+                drag_coefficient: 0.35,
+                frontal_area: 2.0,
+            },
+            max_steering: 0.5,
+            drivetrain: Drivetrain::rwd(10_000.0),
+            brakes: Brakes::new(10_000.0, 0.5),
+        }
+    }
 }
 
 #[derive(Component, Clone, Debug)]
@@ -44,15 +64,17 @@ pub struct Car {
     dynamics: Dynamics,
 }
 
+impl Default for Car {
+    fn default() -> Self {
+        Self::new(Params::default())
+    }
+}
+
 impl Car {
     pub fn new(params: Params) -> Self {
         Self {
             dynamics: Dynamics::new(params),
         }
-    }
-
-    pub fn bmw_e30() -> Self {
-        Self::new(Params::BMW_E30)
     }
 
     /// Advances the car by `dt` [s] under the given controls.
@@ -68,8 +90,22 @@ impl Car {
         self.dynamics.state()
     }
 
+    pub fn input(&self) -> &bicycle_model::Input {
+        self.dynamics.input()
+    }
+
+    pub fn model(&self) -> bicycle_model::Model {
+        self.dynamics.model()
+    }
+
     /// Speed of the CG [m/s].
     pub fn speed(&self) -> f32 {
         self.state().velocity.length()
+    }
+}
+
+fn step(time: Res<Time<Fixed>>, mut cars: Query<(&mut Car, &Controls)>) {
+    for (mut car, controls) in &mut cars {
+        car.step(*controls, time.delta_secs());
     }
 }

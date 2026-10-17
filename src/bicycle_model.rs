@@ -20,7 +20,7 @@ pub struct Params {
     pub cg_to_front_axle: f32,
     /// Distance from CG to rear axle [m].
     pub cg_to_rear_axle: f32,
-    /// Cornering stiffness [1/rad].
+    /// Cornering stiffness per unit axle load [1/rad].
     pub cornering_coefficient: f32,
     /// Rolling resistance [kg/s].
     pub rolling_resistance: f32,
@@ -35,9 +35,14 @@ impl Params {
         self.cg_to_front_axle + self.cg_to_rear_axle
     }
 
-    /// Aerodynamic drag [kg/m].
-    pub const fn drag(&self) -> f32 {
-        0.5 * AIR_DENSITY * self.drag_coefficient * self.frontal_area
+    /// Aerodynamic drag force opposing a velocity [m/s] [N].
+    pub const fn drag_force(&self, velocity: f32) -> f32 {
+        -0.5 * AIR_DENSITY * self.drag_coefficient * self.frontal_area * velocity * velocity.abs()
+    }
+
+    /// Rolling resistance force opposing a velocity [m/s] [N].
+    pub const fn rolling_resistance_force(&self, velocity: f32) -> f32 {
+        -self.rolling_resistance * velocity
     }
 
     /// Front and rear axle cornering stiffness [N/rad].
@@ -81,8 +86,14 @@ pub struct State {
     pub yaw_rate: f32,
 }
 
-#[derive(Clone, Copy, Debug)]
-enum Model {
+impl State {
+    pub fn slip_angle(&self) -> f32 {
+        self.velocity.y.atan2(self.velocity.x.abs())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Model {
     Kinematic,
     Dynamic,
 }
@@ -109,6 +120,10 @@ impl AckermannBicycle {
 
     pub fn state(&self) -> &State {
         &self.state
+    }
+
+    pub fn model(&self) -> Model {
+        self.model
     }
 
     /// Advances the model by `dt` [s].

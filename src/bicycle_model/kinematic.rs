@@ -3,8 +3,8 @@ use bevy_math::{Rot2, Vec2};
 
 pub fn step(params: &Params, state: &mut State, input: Input, dt: f32) {
     let speed = signed_speed(state);
-    let resistance = speed * (params.rolling_resistance + params.drag() * speed.abs());
-    let acceleration = (input.longitudinal_force() - resistance) / params.mass;
+    let resistance = params.drag_force(speed) + params.rolling_resistance_force(speed);
+    let acceleration = (input.longitudinal_force() + resistance) / params.mass;
 
     let direction = Vec2::from_angle(slip_angle(params, input.steering_angle));
     let yaw_rate_per_speed = direction.x * input.steering_angle.tan() / params.wheelbase();

@@ -14,19 +14,24 @@ pub fn step(params: &Params, state: &mut State, input: Input, dt: f32) {
     integrate(state, derivatives, dt);
 }
 
-/// Front and rear tire slip angles [rad] for a steering angle [rad].
-pub fn slip_angles(params: &Params, state: &State, steering: f32) -> (f32, f32) {
+/// Front and rear axle velocities in the body frame [m/s].
+pub fn axle_velocities(params: &Params, state: &State) -> (Vec2, Vec2) {
     let (lf, lr) = (params.cg_to_front_axle, params.cg_to_rear_axle);
     let Vec2 { x: vx, y: vy } = state.velocity;
-    let (sin_delta, cos_delta) = steering.sin_cos();
-    let front_lateral = vy + lf * state.yaw_rate;
-    let front = (front_lateral * cos_delta - vx * sin_delta).atan2(
-        (vx * cos_delta + front_lateral * sin_delta)
-            .abs()
-            .max(SLIP_SPEED_FLOOR),
-    );
-    let rear = (vy - lr * state.yaw_rate).atan2(vx.abs().max(SLIP_SPEED_FLOOR));
-    (front, rear)
+    (
+        Vec2::new(vx, vy + lf * state.yaw_rate),
+        Vec2::new(vx, vy - lr * state.yaw_rate),
+    )
+}
+
+/// Front and rear tire slip angles [rad] for a steering angle [rad].
+pub fn slip_angles(params: &Params, state: &State, steering: f32) -> (f32, f32) {
+    let (front, rear) = axle_velocities(params, state);
+    let front = Rot2::radians(-steering) * front;
+    (
+        front.y.atan2(front.x.abs().max(SLIP_SPEED_FLOOR)),
+        rear.y.atan2(rear.x.abs().max(SLIP_SPEED_FLOOR)),
+    )
 }
 
 /// Front and rear lateral tire forces (in tire frame) [N] for a steering angle [rad].
@@ -47,10 +52,12 @@ fn derivatives(p: &Params, state: &State, input: Input) -> Derivatives {
     let (fy_front, fy_rear) = lateral_forces(p, state, input.steering_angle);
     let front_x = fx_front * cos_delta - fy_front * sin_delta;
     let front_y = fx_front * sin_delta + fy_front * cos_delta;
+    let drag = state.velocity.normalize_or_zero() * p.drag_force(state.velocity.length());
+    let rolling_resistance = p.rolling_resistance_force(vx);
     Derivatives {
         velocity: Vec2::new(
-            (front_x + fx_rear) / p.mass + vy * state.yaw_rate,
-            (front_y + fy_rear) / p.mass - vx * state.yaw_rate,
+            (front_x + fx_rear + rolling_resistance + drag.x) / p.mass + vy * state.yaw_rate,
+            (front_y + fy_rear + drag.y) / p.mass - vx * state.yaw_rate,
         ),
         yaw_rate: (lf * front_y - lr * fy_rear) / p.yaw_inertia,
     }
