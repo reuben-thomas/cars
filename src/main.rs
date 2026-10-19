@@ -23,6 +23,7 @@ fn main() {
                 primary_window: Some(Window {
                     title: keyboard::HELP.into(),
                     resolution: (1100, 750).into(),
+                    fit_canvas_to_parent: true,
                     ..default()
                 }),
                 ..default()

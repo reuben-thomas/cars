@@ -26,9 +26,9 @@ jobs:
       - name: install just
         run: uv tool install rust-just==1.59.0
       - name: build
-        run: just build ${{ matrix.target }}
+        run: just build --target ${{ matrix.target }}
       - name: style
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: just fmt-check
       - name: clippy
-        run: just lint-check ${{ matrix.target }}
+        run: just lint --target ${{ matrix.target }}
