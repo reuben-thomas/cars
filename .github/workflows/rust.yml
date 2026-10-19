@@ -22,10 +22,13 @@ jobs:
         run: |
           rustup component add rustfmt clippy
           rustup target add ${{ matrix.target }}
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: install just
+        run: uv tool install rust-just==1.59.0
       - name: build
-        run: cargo build --verbose --target ${{ matrix.target }}
+        run: just build ${{ matrix.target }}
       - name: style
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo fmt --check
+        run: just fmt-check
       - name: clippy
-        run: cargo clippy --all-targets --target ${{ matrix.target }} -- -D warnings
+        run: just lint-check ${{ matrix.target }}
