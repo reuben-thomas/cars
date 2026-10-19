@@ -1,6 +1,7 @@
 use super::Dimensions;
 use crate::bicycle_model::{Model, dynamic};
 use crate::car::{Axle, Car};
+use crate::keymap::{Action, Actions};
 use crate::view::to_screen;
 use bevy::prelude::*;
 use bevy::text::FontSize;
@@ -113,24 +114,24 @@ fn enabled(store: Res<GizmoConfigStore>) -> bool {
     store.config::<CarGizmos>().0.enabled
 }
 
-fn toggle(keys: Res<ButtonInput<KeyCode>>, mut store: ResMut<GizmoConfigStore>) {
+fn toggle(actions: Actions, mut store: ResMut<GizmoConfigStore>) {
     let (config, debug) = store.config_mut::<CarGizmos>();
-    if keys.just_pressed(KeyCode::Backquote) {
+    if actions.just_pressed(Action::ToggleDebug) {
         config.enabled = !config.enabled;
     }
-    if keys.just_pressed(KeyCode::F1) {
+    if actions.just_pressed(Action::ToggleVelocity) {
         debug.velocity = !debug.velocity;
     }
-    if keys.just_pressed(KeyCode::F2) {
+    if actions.just_pressed(Action::ToggleChassis) {
         debug.chassis = !debug.chassis;
     }
-    if keys.just_pressed(KeyCode::F3) {
+    if actions.just_pressed(Action::ToggleBicycleModel) {
         debug.bicycle_model = !debug.bicycle_model;
     }
-    if keys.just_pressed(KeyCode::F4) {
+    if actions.just_pressed(Action::ToggleText) {
         debug.text = !debug.text;
     }
-    if keys.just_pressed(KeyCode::F5) {
+    if actions.just_pressed(Action::ToggleTrail) {
         debug.trail = !debug.trail;
     }
 }

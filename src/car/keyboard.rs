@@ -1,4 +1,5 @@
 use super::{Car, Controls};
+use crate::keymap::{Action, Actions};
 use bevy::prelude::*;
 
 /// Rate at which the steering moves towards its target [full locks/s].
@@ -15,17 +16,17 @@ pub const HELP: &str = "W/Up: forward | S/Down: brake/reverse | A/D/Left/Right: 
 pub struct KeyboardControlled;
 
 pub fn drive(
-    keys: Res<ButtonInput<KeyCode>>,
+    actions: Actions,
     time: Res<Time<Fixed>>,
     mut cars: Query<(&Car, &mut Controls), With<KeyboardControlled>>,
 ) {
     let steering_target = axis(
-        keys.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]),
-        keys.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]),
+        actions.pressed(Action::SteerLeft),
+        actions.pressed(Action::SteerRight),
     );
     let request = axis(
-        keys.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]),
-        keys.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]),
+        actions.pressed(Action::Accelerate),
+        actions.pressed(Action::Brake),
     );
     let max_steering_change = STEERING_RATE * time.delta_secs();
 
@@ -41,8 +42,8 @@ pub fn drive(
     }
 }
 
-pub fn reset(keys: Res<ButtonInput<KeyCode>>, mut cars: Query<&mut Car, With<KeyboardControlled>>) {
-    if !keys.just_pressed(KeyCode::KeyR) {
+pub fn reset(actions: Actions, mut cars: Query<&mut Car, With<KeyboardControlled>>) {
+    if !actions.just_pressed(Action::Reset) {
         return;
     }
     for mut car in &mut cars {

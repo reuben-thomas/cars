@@ -6,6 +6,7 @@ use bevy::window::PrimaryWindow;
 use cars::car::visual::Dimensions;
 use cars::car::visual::debug::CarDebugPlugin;
 use cars::car::{Car, CarPlugin, Controls, keyboard};
+use cars::keymap::KeymapPlugin;
 use cars::view::{PIXELS_PER_METRE, to_screen};
 
 const PHYSICS_HZ: f64 = 240.0;
@@ -28,6 +29,7 @@ fn main() {
                 }),
                 ..default()
             }),
+            KeymapPlugin,
             CarPlugin,
             CarDebugPlugin {
                 enabled: false,

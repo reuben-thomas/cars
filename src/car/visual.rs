@@ -2,6 +2,7 @@ mod body;
 pub mod debug;
 
 use super::{Axle, Car};
+use crate::keymap::{Action, Actions};
 use crate::view::to_screen;
 use bevy::prelude::*;
 
@@ -107,11 +108,11 @@ fn sync_transform(mut cars: Query<(&Car, &mut Transform)>) {
 }
 
 fn toggle_body(
-    keys: Res<ButtonInput<KeyCode>>,
+    actions: Actions,
     mut show: ResMut<ShowBody>,
     mut cars: Query<&mut Visibility, With<Car>>,
 ) {
-    if keys.just_pressed(KeyCode::F6) {
+    if actions.just_pressed(Action::ToggleBody) {
         show.0 = !show.0;
     }
     let visibility = if show.0 {
