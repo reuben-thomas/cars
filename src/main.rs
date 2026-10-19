@@ -7,6 +7,7 @@ use cars::car::visual::Dimensions;
 use cars::car::visual::debug::CarDebugPlugin;
 use cars::car::{Car, CarPlugin, Controls, keyboard};
 use cars::help::HelpPlugin;
+use cars::hud::HudPlugin;
 use cars::keymap::KeymapPlugin;
 use cars::view::{PIXELS_PER_METRE, to_screen};
 
@@ -33,6 +34,7 @@ fn main() {
             KeymapPlugin,
             CarPlugin,
             HelpPlugin,
+            HudPlugin,
             CarDebugPlugin {
                 enabled: false,
                 ..default()

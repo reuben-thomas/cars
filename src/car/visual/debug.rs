@@ -1,7 +1,7 @@
 use super::Dimensions;
 use crate::bicycle_model::{Model, dynamic};
 use crate::car::{Axle, Car};
-use crate::keymap::{Action, Actions};
+use crate::keymap::Action;
 use crate::view::to_screen;
 use bevy::prelude::*;
 use bevy::text::FontSize;
@@ -114,7 +114,7 @@ fn enabled(store: Res<GizmoConfigStore>) -> bool {
     store.config::<CarGizmos>().0.enabled
 }
 
-fn toggle(actions: Actions, mut store: ResMut<GizmoConfigStore>) {
+fn toggle(actions: Res<ButtonInput<Action>>, mut store: ResMut<GizmoConfigStore>) {
     let (config, debug) = store.config_mut::<CarGizmos>();
     if actions.just_pressed(Action::ToggleDebug) {
         config.enabled = !config.enabled;

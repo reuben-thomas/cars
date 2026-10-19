@@ -1,5 +1,5 @@
 use super::{Car, Controls};
-use crate::keymap::{Action, Actions};
+use crate::keymap::Action;
 use bevy::prelude::*;
 
 /// Rate at which the steering moves towards its target [full locks/s].
@@ -12,7 +12,7 @@ const DIRECTION_CHANGE_SPEED: f32 = 0.02;
 pub struct KeyboardControlled;
 
 pub fn drive(
-    actions: Actions,
+    actions: Res<ButtonInput<Action>>,
     time: Res<Time<Fixed>>,
     mut cars: Query<(&Car, &mut Controls), With<KeyboardControlled>>,
 ) {
@@ -38,7 +38,10 @@ pub fn drive(
     }
 }
 
-pub fn reset(actions: Actions, mut cars: Query<&mut Car, With<KeyboardControlled>>) {
+pub fn reset(
+    actions: Res<ButtonInput<Action>>,
+    mut cars: Query<&mut Car, With<KeyboardControlled>>,
+) {
     if !actions.just_pressed(Action::Reset) {
         return;
     }

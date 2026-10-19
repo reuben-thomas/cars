@@ -1,15 +1,24 @@
-//! Keyboard bindings. Input systems and the help page both read the
-//! [`Keymap`], so it is the single definition of what each key does.
-
-use bevy::ecs::system::SystemParam;
+use bevy::input::InputSystems;
+use bevy::picking::PickingSystems;
+use bevy::picking::events::PointerPress;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 use std::borrow::Cow;
 
 pub struct KeymapPlugin;
 
 impl Plugin for KeymapPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Keymap>();
+        app.init_resource::<Keymap>()
+            .init_resource::<ButtonInput<Action>>()
+            .add_observer(press_button)
+            .add_systems(First, clear_actions)
+            .add_systems(
+                PreUpdate,
+                update_actions
+                    .after(InputSystems)
+                    .after(PickingSystems::Last),
+            );
     }
 }
 
@@ -56,7 +65,6 @@ pub struct Binding {
     pub description: &'static str,
 }
 
-/// Bindings in the order they are listed on the help page.
 #[derive(Resource, Clone, Debug)]
 pub struct Keymap {
     bindings: Vec<Binding>,
@@ -98,43 +106,56 @@ impl Keymap {
     pub fn bindings(&self) -> &[Binding] {
         &self.bindings
     }
+}
 
-    pub fn keys(&self, action: Action) -> &[KeyCode] {
-        self.bindings
-            .iter()
-            .find(|binding| binding.action == action)
-            .map_or(&[], |binding| &binding.keys)
+#[derive(Component, Clone, Copy, Debug)]
+pub struct ActionButton(pub Action);
+
+fn clear_actions(mut actions: ResMut<ButtonInput<Action>>) {
+    actions.clear();
+}
+
+fn press_button(
+    press: On<PointerPress>,
+    buttons: Query<&ActionButton>,
+    mut actions: ResMut<ButtonInput<Action>>,
+) {
+    if let Ok(&ActionButton(action)) = buttons.get(press.entity) {
+        actions.press(action);
     }
 }
 
-/// Keyboard state queried by [`Action`] rather than by key.
-#[derive(SystemParam)]
-pub struct Actions<'w> {
-    keys: Res<'w, ButtonInput<KeyCode>>,
-    keymap: Res<'w, Keymap>,
+fn update_actions(
+    keys: Res<ButtonInput<KeyCode>>,
+    keymap: Res<Keymap>,
+    buttons: Query<(&ActionButton, Has<Pressed>)>,
+    mut actions: ResMut<ButtonInput<Action>>,
+) {
+    for binding in keymap.bindings() {
+        let action = binding.action;
+        let bound = || binding.keys.iter().copied();
+        if keys.any_just_pressed(bound()) {
+            actions.press(action);
+        }
+        let held = keys.any_pressed(bound())
+            || buttons
+                .iter()
+                .any(|(button, pressed)| button.0 == action && pressed);
+        if held {
+            actions.press(action);
+        } else {
+            actions.release(action);
+        }
+    }
 }
 
-impl Actions<'_> {
-    pub fn pressed(&self, action: Action) -> bool {
-        self.keys
-            .any_pressed(self.keymap.keys(action).iter().copied())
-    }
-
-    pub fn just_pressed(&self, action: Action) -> bool {
-        self.keys
-            .any_just_pressed(self.keymap.keys(action).iter().copied())
-    }
-}
-
-/// Short label for a key, as printed on the keycap.
 pub fn label(key: KeyCode) -> Cow<'static, str> {
     let name = match key {
-        KeyCode::ArrowUp => "^",
-        KeyCode::ArrowDown => "v",
-        KeyCode::ArrowLeft => "<",
-        KeyCode::ArrowRight => ">",
+        KeyCode::ArrowUp => "Up",
+        KeyCode::ArrowDown => "Down",
+        KeyCode::ArrowLeft => "Left",
+        KeyCode::ArrowRight => "Right",
         KeyCode::Backquote => "`",
-        // The `?` key on US layouts.
         KeyCode::Slash => "?",
         KeyCode::Escape => "Esc",
         _ => {
