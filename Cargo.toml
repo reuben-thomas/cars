@@ -7,7 +7,7 @@ edition = "2024"
 bevy = { version = "0.20.0", default-features = false, features = [
     "std", "async_executor", "multi_threaded", "bevy_log", "bevy_winit",
     "bevy_core_pipeline", "bevy_sprite_render", "bevy_gizmos_render", "bevy_post_process", "x11",
-    "bevy_text", "default_font",
+    "bevy_text", "default_font", "bevy_ui", "bevy_ui_render", "bevy_ui_widgets", "ui_picking",
 ] }
 bevy_ecs = { version = "0.20.0", default-features = false, features = ["std"] }
 bevy_math = { version = "0.20.0", default-features = false, features = ["std"] }
