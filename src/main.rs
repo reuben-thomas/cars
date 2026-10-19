@@ -6,6 +6,7 @@ use bevy::window::PrimaryWindow;
 use cars::car::visual::Dimensions;
 use cars::car::visual::debug::CarDebugPlugin;
 use cars::car::{Car, CarPlugin, Controls, keyboard};
+use cars::help::HelpPlugin;
 use cars::keymap::KeymapPlugin;
 use cars::view::{PIXELS_PER_METRE, to_screen};
 
@@ -22,7 +23,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: keyboard::HELP.into(),
+                    title: "cars".into(),
                     resolution: (1100, 750).into(),
                     fit_canvas_to_parent: true,
                     ..default()
@@ -31,6 +32,7 @@ fn main() {
             }),
             KeymapPlugin,
             CarPlugin,
+            HelpPlugin,
             CarDebugPlugin {
                 enabled: false,
                 ..default()

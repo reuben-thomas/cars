@@ -8,10 +8,6 @@ const STEERING_RATE: f32 = 2.0;
 /// changing direction [m/s].
 const DIRECTION_CHANGE_SPEED: f32 = 0.02;
 
-pub const HELP: &str = "W/Up: forward | S/Down: brake/reverse | A/D/Left/Right: steer \
-                        | R: reset | `: debug | F1: velocity | F2: chassis \
-                        | F3: bicycle model | F4: text | F5: trail | F6: body";
-
 #[derive(Component)]
 pub struct KeyboardControlled;
 

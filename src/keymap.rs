@@ -3,6 +3,7 @@
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use std::borrow::Cow;
 
 pub struct KeymapPlugin;
 
@@ -26,6 +27,8 @@ pub enum Action {
     ToggleBicycleModel,
     ToggleText,
     ToggleTrail,
+    ToggleHelp,
+    CloseHelp,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,6 +81,8 @@ impl Default for Keymap {
                 binding(SteerRight, &[KeyD, ArrowRight], Driving, "Steer right"),
                 binding(Reset, &[KeyR], Driving, "Reset car"),
                 binding(ToggleBody, &[F6], View, "Toggle car body"),
+                binding(ToggleHelp, &[Slash], View, "Toggle this help"),
+                binding(CloseHelp, &[Escape], View, "Close this help"),
                 binding(ToggleDebug, &[Backquote], Debug, "Toggle debug overlay"),
                 binding(ToggleVelocity, &[F1], Debug, "Toggle velocity"),
                 binding(ToggleChassis, &[F2], Debug, "Toggle chassis"),
@@ -119,4 +124,27 @@ impl Actions<'_> {
         self.keys
             .any_just_pressed(self.keymap.keys(action).iter().copied())
     }
+}
+
+/// Short label for a key, as printed on the keycap.
+pub fn label(key: KeyCode) -> Cow<'static, str> {
+    let name = match key {
+        KeyCode::ArrowUp => "^",
+        KeyCode::ArrowDown => "v",
+        KeyCode::ArrowLeft => "<",
+        KeyCode::ArrowRight => ">",
+        KeyCode::Backquote => "`",
+        // The `?` key on US layouts.
+        KeyCode::Slash => "?",
+        KeyCode::Escape => "Esc",
+        _ => {
+            let name = format!("{key:?}");
+            let name = name
+                .strip_prefix("Key")
+                .or_else(|| name.strip_prefix("Digit"))
+                .unwrap_or(&name);
+            return Cow::Owned(name.to_owned());
+        }
+    };
+    Cow::Borrowed(name)
 }
