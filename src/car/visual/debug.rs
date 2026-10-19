@@ -122,17 +122,28 @@ fn toggle(actions: Res<ButtonInput<Action>>, mut store: ResMut<GizmoConfigStore>
 }
 
 fn spawn(mut commands: Commands, cars: Query<Entity, Added<Car>>) {
+    let font = TextFont {
+        font_size: FontSize::Px(TEXT_SIZE),
+        ..default()
+    };
     for car in &cars {
         commands.entity(car).insert(Trail::default());
+        let key = [
+            ("\n\nkey", TEXT),
+            ("\nvelocity", VELOCITY),
+            ("\nfront axle: wheel, forces, trail", FRONT_WHEEL),
+            ("\nrear axle: wheel, forces, trail", REAR_WHEEL),
+            ("\naerodynamic drag", DRAG),
+            ("\nchassis and bicycle model frame", CHASSIS),
+        ]
+        .map(|(label, color)| (TextSpan::new(label), font.clone(), TextColor(color)));
         commands.spawn((
             DebugText(car),
             Text2d::default(),
-            TextFont {
-                font_size: FontSize::Px(TEXT_SIZE),
-                ..default()
-            },
+            font.clone(),
             TextColor(TEXT),
             Transform::default(),
+            Children::spawn(SpawnIter(key.into_iter())),
         ));
     }
 }
