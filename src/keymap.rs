@@ -31,11 +31,6 @@ pub enum Action {
     Reset,
     ToggleBody,
     ToggleDebug,
-    ToggleVelocity,
-    ToggleChassis,
-    ToggleBicycleModel,
-    ToggleText,
-    ToggleTrail,
     ToggleHelp,
     CloseHelp,
 }
@@ -92,11 +87,6 @@ impl Default for Keymap {
                 binding(ToggleHelp, &[Slash], View, "Toggle this help"),
                 binding(CloseHelp, &[Escape], View, "Close this help"),
                 binding(ToggleDebug, &[Backquote], Debug, "Toggle debug overlay"),
-                binding(ToggleVelocity, &[F1], Debug, "Toggle velocity"),
-                binding(ToggleChassis, &[F2], Debug, "Toggle chassis"),
-                binding(ToggleBicycleModel, &[F3], Debug, "Toggle bicycle model"),
-                binding(ToggleText, &[F4], Debug, "Toggle text"),
-                binding(ToggleTrail, &[F5], Debug, "Toggle trail"),
             ],
         }
     }

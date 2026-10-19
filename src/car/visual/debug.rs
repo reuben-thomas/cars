@@ -115,24 +115,9 @@ fn enabled(store: Res<GizmoConfigStore>) -> bool {
 }
 
 fn toggle(actions: Res<ButtonInput<Action>>, mut store: ResMut<GizmoConfigStore>) {
-    let (config, debug) = store.config_mut::<CarGizmos>();
     if actions.just_pressed(Action::ToggleDebug) {
+        let config = store.config_mut::<CarGizmos>().0;
         config.enabled = !config.enabled;
-    }
-    if actions.just_pressed(Action::ToggleVelocity) {
-        debug.velocity = !debug.velocity;
-    }
-    if actions.just_pressed(Action::ToggleChassis) {
-        debug.chassis = !debug.chassis;
-    }
-    if actions.just_pressed(Action::ToggleBicycleModel) {
-        debug.bicycle_model = !debug.bicycle_model;
-    }
-    if actions.just_pressed(Action::ToggleText) {
-        debug.text = !debug.text;
-    }
-    if actions.just_pressed(Action::ToggleTrail) {
-        debug.trail = !debug.trail;
     }
 }
 
