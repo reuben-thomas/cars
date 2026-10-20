@@ -35,14 +35,14 @@ impl Params {
         self.cg_to_front_axle + self.cg_to_rear_axle
     }
 
-    /// Aerodynamic drag force opposing a velocity [m/s] [N].
-    pub const fn drag_force(&self, velocity: f32) -> f32 {
-        -0.5 * AIR_DENSITY * self.drag_coefficient * self.frontal_area * velocity * velocity.abs()
+    /// Aerodynamic drag force opposing a signed speed [m/s] [N].
+    pub const fn drag_force(&self, speed: f32) -> f32 {
+        -0.5 * AIR_DENSITY * self.drag_coefficient * self.frontal_area * speed * speed.abs()
     }
 
-    /// Rolling resistance force opposing a velocity [m/s] [N].
-    pub const fn rolling_resistance_force(&self, velocity: f32) -> f32 {
-        -self.rolling_resistance * velocity
+    /// Rolling resistance force opposing a signed speed [m/s] [N].
+    pub const fn rolling_resistance_force(&self, speed: f32) -> f32 {
+        -self.rolling_resistance * speed
     }
 
     /// Front and rear axle cornering stiffness [N/rad].
