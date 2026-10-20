@@ -3,12 +3,13 @@ use bevy::camera::visibility::RenderLayers;
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use cars::car::visual::Dimensions;
 use cars::car::visual::debug::CarDebugPlugin;
-use cars::car::{Car, CarPlugin, Controls, keyboard};
+use cars::car::visual::{CarBodyPlugin, Dimensions};
+use cars::car::{Car, CarPlugin, Controls};
 use cars::help::HelpPlugin;
 use cars::hud::HudPlugin;
 use cars::keymap::KeymapPlugin;
+use cars::player::{Player, PlayerPlugin};
 use cars::view::{PIXELS_PER_METRE, to_screen};
 
 const PHYSICS_HZ: f64 = 240.0;
@@ -34,6 +35,8 @@ fn main() {
             }),
             KeymapPlugin,
             CarPlugin,
+            CarBodyPlugin,
+            PlayerPlugin,
             HelpPlugin,
             HudPlugin,
             CarDebugPlugin {
@@ -81,7 +84,7 @@ fn setup(mut commands: Commands, mut gizmos: ResMut<GizmoConfigStore>) {
         Car::default(),
         Dimensions::default(),
         Controls::default(),
-        keyboard::KeyboardControlled,
+        Player,
     ));
 }
 

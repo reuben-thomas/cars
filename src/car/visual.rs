@@ -2,21 +2,24 @@ mod body;
 pub mod debug;
 
 use super::{Axle, Car};
-use crate::keymap::Action;
 use crate::view::to_screen;
 use bevy::prelude::*;
 
-pub(super) fn plugin(app: &mut App) {
-    app.init_resource::<ShowBody>().add_systems(
-        Update,
-        (
-            sync_transform,
-            toggle_body,
-            body::spawn,
-            body::steer_wheels,
-            body::light_lamps,
-        ),
-    );
+pub struct CarBodyPlugin;
+
+impl Plugin for CarBodyPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<ShowBody>().add_systems(
+            Update,
+            (
+                sync_transform,
+                show_body,
+                body::spawn,
+                body::steer_wheels,
+                body::light_lamps,
+            ),
+        );
+    }
 }
 
 #[derive(Component, Clone, Debug)]
@@ -107,14 +110,7 @@ fn sync_transform(mut cars: Query<(&Car, &mut Transform)>) {
     }
 }
 
-fn toggle_body(
-    actions: Res<ButtonInput<Action>>,
-    mut show: ResMut<ShowBody>,
-    mut cars: Query<&mut Visibility, With<Car>>,
-) {
-    if actions.just_pressed(Action::ToggleBody) {
-        show.0 = !show.0;
-    }
+fn show_body(show: Res<ShowBody>, mut cars: Query<&mut Visibility, With<Car>>) {
     let visibility = if show.0 {
         Visibility::Inherited
     } else {

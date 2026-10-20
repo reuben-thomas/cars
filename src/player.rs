@@ -1,4 +1,6 @@
-use super::{Car, Controls};
+use crate::car::visual::ShowBody;
+use crate::car::visual::debug::CarGizmos;
+use crate::car::{Car, CarSystems, Controls};
 use crate::keymap::Action;
 use bevy::prelude::*;
 
@@ -8,13 +10,22 @@ const STEERING_RATE: f32 = 2.0;
 /// changing direction [m/s].
 const DIRECTION_CHANGE_SPEED: f32 = 0.02;
 
-#[derive(Component)]
-pub struct KeyboardControlled;
+pub struct PlayerPlugin;
 
-pub fn drive(
+impl Plugin for PlayerPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(FixedUpdate, drive.before(CarSystems))
+            .add_systems(Update, (reset, toggle_body, toggle_debug));
+    }
+}
+
+#[derive(Component)]
+pub struct Player;
+
+fn drive(
     actions: Res<ButtonInput<Action>>,
     time: Res<Time<Fixed>>,
-    mut cars: Query<(&Car, &mut Controls), With<KeyboardControlled>>,
+    mut cars: Query<(&Car, &mut Controls), With<Player>>,
 ) {
     let steering_target = axis(
         actions.pressed(Action::SteerLeft),
@@ -38,16 +49,26 @@ pub fn drive(
     }
 }
 
-pub fn reset(
-    actions: Res<ButtonInput<Action>>,
-    mut cars: Query<&mut Car, With<KeyboardControlled>>,
-) {
+fn reset(actions: Res<ButtonInput<Action>>, mut cars: Query<&mut Car, With<Player>>) {
     if !actions.just_pressed(Action::Reset) {
         return;
     }
     for mut car in &mut cars {
         let reset = Car::new(car.params().clone());
         *car = reset;
+    }
+}
+
+fn toggle_body(actions: Res<ButtonInput<Action>>, mut show: ResMut<ShowBody>) {
+    if actions.just_pressed(Action::ToggleBody) {
+        show.0 = !show.0;
+    }
+}
+
+fn toggle_debug(actions: Res<ButtonInput<Action>>, mut store: ResMut<GizmoConfigStore>) {
+    if actions.just_pressed(Action::ToggleDebug) {
+        let config = store.config_mut::<CarGizmos>().0;
+        config.enabled = !config.enabled;
     }
 }
 

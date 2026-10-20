@@ -4,5 +4,6 @@ pub mod help;
 pub mod hud;
 pub mod keymap;
 pub mod physics;
+pub mod player;
 pub mod ui;
 pub mod view;

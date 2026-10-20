@@ -1,7 +1,6 @@
 use super::Dimensions;
 use crate::bicycle_model::{Model, dynamic};
 use crate::car::{Axle, Car};
-use crate::keymap::Action;
 use crate::view::to_screen;
 use bevy::prelude::*;
 use bevy::text::FontSize;
@@ -51,13 +50,7 @@ impl Plugin for CarDebugPlugin {
         )
         .add_systems(
             Update,
-            (
-                toggle,
-                spawn,
-                (record_trail, draw).run_if(enabled),
-                update_text,
-            )
-                .chain(),
+            (spawn, (record_trail, draw).run_if(enabled), update_text).chain(),
         );
     }
 }
@@ -112,13 +105,6 @@ struct TrailPoint {
 
 fn enabled(store: Res<GizmoConfigStore>) -> bool {
     store.config::<CarGizmos>().0.enabled
-}
-
-fn toggle(actions: Res<ButtonInput<Action>>, mut store: ResMut<GizmoConfigStore>) {
-    if actions.just_pressed(Action::ToggleDebug) {
-        let config = store.config_mut::<CarGizmos>().0;
-        config.enabled = !config.enabled;
-    }
 }
 
 fn spawn(mut commands: Commands, cars: Query<Entity, Added<Car>>) {

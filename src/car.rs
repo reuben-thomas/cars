@@ -1,23 +1,22 @@
-mod dynamics;
-pub mod keyboard;
+mod params;
 pub mod visual;
 
-pub use dynamics::{Brakes, Drivetrain, Params};
+pub use params::{Brakes, Drivetrain, Params};
 
-use crate::bicycle_model;
+use crate::bicycle_model::{self, AckermannBicycle};
 use bevy::math::Isometry2d;
 use bevy::prelude::*;
-use dynamics::Dynamics;
 
 pub struct CarPlugin;
 
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(visual::plugin)
-            .add_systems(FixedUpdate, (keyboard::drive, step).chain())
-            .add_systems(Update, keyboard::reset);
+        app.add_systems(FixedUpdate, step.in_set(CarSystems));
     }
 }
+
+#[derive(SystemSet, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CarSystems;
 
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct Controls {
@@ -31,26 +30,6 @@ pub struct Controls {
     pub reverse: bool,
 }
 
-impl Default for Params {
-    fn default() -> Self {
-        Self {
-            bicycle: bicycle_model::Params {
-                mass: 1200.0,
-                yaw_inertia: 2000.0,
-                cg_to_front_axle: 1.3,
-                cg_to_rear_axle: 1.3,
-                cornering_coefficient: 8.0,
-                rolling_resistance: 6.0,
-                drag_coefficient: 0.35,
-                frontal_area: 2.0,
-            },
-            max_steering: 0.5,
-            drivetrain: Drivetrain::rwd(10_000.0),
-            brakes: Brakes::new(10_000.0, 0.5),
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Axle {
     Front,
@@ -60,7 +39,9 @@ pub enum Axle {
 #[derive(Component, Clone, Debug)]
 #[require(Transform, Visibility)]
 pub struct Car {
-    dynamics: Dynamics,
+    params: Params,
+    bicycle: AckermannBicycle,
+    input: bicycle_model::Input,
 }
 
 impl Default for Car {
@@ -72,29 +53,32 @@ impl Default for Car {
 impl Car {
     pub fn new(params: Params) -> Self {
         Self {
-            dynamics: Dynamics::new(params),
+            bicycle: AckermannBicycle::new(params.bicycle.clone()),
+            params,
+            input: bicycle_model::Input::default(),
         }
     }
 
     /// Advances the car by `dt` [s] under the given controls.
     pub fn step(&mut self, controls: Controls, dt: f32) {
-        self.dynamics.step(controls, dt);
+        self.input = self.bicycle_input(controls, dt);
+        self.bicycle.step(self.input, dt);
     }
 
     pub fn params(&self) -> &Params {
-        self.dynamics.params()
+        &self.params
     }
 
     pub fn state(&self) -> &bicycle_model::State {
-        self.dynamics.state()
+        self.bicycle.state()
     }
 
     pub fn input(&self) -> &bicycle_model::Input {
-        self.dynamics.input()
+        &self.input
     }
 
     pub fn model(&self) -> bicycle_model::Model {
-        self.dynamics.model()
+        self.bicycle.model()
     }
 
     pub fn speed(&self) -> f32 {
@@ -118,6 +102,27 @@ impl Car {
         match axle {
             Axle::Front => Rot2::radians(self.input().steering_angle),
             Axle::Rear => Rot2::IDENTITY,
+        }
+    }
+
+    fn bicycle_input(&self, controls: Controls, dt: f32) -> bicycle_model::Input {
+        let p = &self.params;
+        let throttle = controls.throttle.clamp(0.0, 1.0);
+        let brake = controls.brake.clamp(0.0, 1.0);
+        let steering = controls.steering.clamp(-1.0, 1.0);
+
+        let direction = if controls.reverse { -1.0 } else { 1.0 };
+        let drive = direction * throttle * p.drivetrain.max_force;
+
+        let vx = self.state().velocity.x;
+        let stopping_force = p.bicycle.mass * vx.abs() / dt;
+        let brake = -vx.signum() * (brake * p.brakes.max_force).min(stopping_force);
+
+        bicycle_model::Input {
+            steering_angle: steering * p.max_steering,
+            front_longitudinal_force: p.drivetrain.front_bias() * drive
+                + p.brakes.front_bias() * brake,
+            rear_longitudinal_force: p.drivetrain.rear_bias * drive + p.brakes.rear_bias * brake,
         }
     }
 }

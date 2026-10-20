@@ -1,6 +1,6 @@
 use crate::car::Car;
-use crate::car::keyboard::KeyboardControlled;
 use crate::keymap::{self, Action, ActionButton};
+use crate::player::Player;
 use crate::ui::{self, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, TEXT, TEXT_SIZE};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
@@ -136,10 +136,7 @@ fn style_buttons(
     }
 }
 
-fn update_readout(
-    car: Single<&Car, With<KeyboardControlled>>,
-    mut readout: Single<&mut Text, With<Readout>>,
-) {
+fn update_readout(car: Single<&Car, With<Player>>, mut readout: Single<&mut Text, With<Readout>>) {
     let speed = car.speed() * 3.6;
     let heading = car.state().heading.as_degrees();
     readout.0 = format!("{speed:.1} kph\n{heading:.1} degrees");
