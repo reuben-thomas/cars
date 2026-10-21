@@ -1,6 +1,7 @@
 use bevy::input::InputSystems;
 use bevy::picking::PickingSystems;
 use bevy::picking::events::PointerPress;
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::Pressed;
 use std::borrow::Cow;
@@ -116,7 +117,7 @@ fn press_button(
 fn update_actions(
     keys: Res<ButtonInput<KeyCode>>,
     keymap: Res<Keymap>,
-    buttons: Query<(&ActionButton, Has<Pressed>)>,
+    buttons: Query<(&ActionButton, Has<Pressed>, &Hovered)>,
     mut actions: ResMut<ButtonInput<Action>>,
 ) {
     for binding in keymap.bindings() {
@@ -128,7 +129,9 @@ fn update_actions(
         let held = keys.any_pressed(bound())
             || buttons
                 .iter()
-                .any(|(button, pressed)| button.0 == action && pressed);
+                .any(|(button, pressed, hovered)| {
+                    button.0 == action && pressed && hovered.get()
+                });
         if held {
             actions.press(action);
         } else {
