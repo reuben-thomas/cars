@@ -18,7 +18,7 @@ build-web *args:
         --no-typescript \
         --out-dir target/web \
         target/{{ wasm_target }}/{{ if args =~ '(^|\s)--release(\s|$)' { "release" } else { "debug" } }}/cars.wasm
-    cp web/index.html target/web/
+    cp web/index.html web/favicon.svg target/web/
 
 run-web *args: (build-web args)
     python3 -m http.server --directory target/web {{ web_port }}

@@ -8,7 +8,7 @@ use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::Pressed;
-use bevy::ui_widgets::{Activate, Button, observe};
+use bevy::ui_widgets::{Button, observe};
 
 const MARGIN: f32 = 16.0;
 const BUTTON_SIZE: f32 = 48.0;
@@ -126,7 +126,8 @@ fn text_button(action: Action, label: impl Into<String>) -> impl Bundle {
 fn repository_button(icon: Handle<Image>) -> impl Bundle {
     (
         RepositoryLink,
-        observe(open_repository),
+        ui::Link(REPOSITORY),
+        observe(ui::open_link),
         plain_button((
             ImageNode::new(icon).with_color(TEXT),
             Node {
@@ -136,12 +137,6 @@ fn repository_button(icon: Handle<Image>) -> impl Bundle {
             },
         )),
     )
-}
-
-fn open_repository(_: On<Activate>) {
-    if let Err(error) = webbrowser::open(REPOSITORY) {
-        warn!("failed to open {REPOSITORY}: {error}");
-    }
 }
 
 fn button(action: Action, content: impl Bundle) -> impl Bundle {
@@ -166,6 +161,7 @@ fn plain_button(content: impl Bundle) -> impl Bundle {
     )
 }
 
+#[allow(clippy::type_complexity)]
 fn style_buttons(
     actions: Res<ButtonInput<Action>>,
     mut buttons: Query<

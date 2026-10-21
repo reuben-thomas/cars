@@ -5,7 +5,7 @@ use super::{Axle, Car};
 use crate::view::to_screen;
 use bevy::prelude::*;
 
-pub const PAINT: Color = Color::srgb_u8(0xef, 0xef, 0xef);
+pub const PAINT: Color = Color::srgb_u8(0xe0, 0x5a, 0x5a);
 
 pub struct CarBodyPlugin;
 

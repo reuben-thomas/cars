@@ -5,8 +5,41 @@ use bevy::prelude::*;
 const KEYS_WIDTH: f32 = 150.0;
 const KEYCAP_SIZE: f32 = 24.0;
 const ARROW_SIZE: f32 = 7.0;
+const ABOUT_WIDTH: f32 = 420.0;
+const WORD_GAP: f32 = 4.0;
 
 const OVERLAY: Color = Color::srgba(0.0, 0.0, 0.0, 0.6);
+
+#[derive(Clone, Copy)]
+enum Span {
+    Text(&'static str),
+    Link(&'static str, &'static str),
+}
+
+const ABOUT: [&[Span]; 2] = [
+    &[
+        Span::Text("This project was inspired by Pat Kerr's "),
+        Span::Link("2D Vehicles", "https://patkerr.co.uk/2d-vehicles/"),
+        Span::Text(
+            " as a throwback to his initial vehicle physics implementation that was included in GTA.",
+        ),
+    ],
+    &[
+        Span::Text(
+            "As my throwback to projects that are certainly equally successful, I've chosen to use the dynamic bicycle model that we use in ",
+        ),
+        Span::Link(
+            "winstxnhdw/AutoCarROS2",
+            "https://github.com/winstxnhdw/AutoCarROS2",
+        ),
+        Span::Text(", and the late "),
+        Span::Link(
+            "NP-DevCar",
+            "https://github.com/reuben-thomas/NP-DevCar/tree/master",
+        ),
+        Span::Text("."),
+    ],
+];
 
 pub struct HelpPlugin;
 
@@ -58,6 +91,18 @@ fn spawn_page(mut commands: Commands, keymap: Res<Keymap>) {
                             }
                         });
                 }
+                panel
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(10),
+                        ..default()
+                    })
+                    .with_children(|section| {
+                        section.spawn(ui::text("About", HEADING_SIZE, HEADING));
+                        for spans in ABOUT {
+                            section.spawn(paragraph(spans));
+                        }
+                    });
             });
         });
 }
@@ -100,6 +145,47 @@ fn row(binding: &Binding) -> impl Bundle {
             ),
             ui::text(binding.description, TEXT_SIZE, TEXT),
         ],
+    )
+}
+
+fn paragraph(spans: &[Span]) -> impl Bundle {
+    let mut words: Vec<Vec<Span>> = vec![Vec::new()];
+    for &span in spans {
+        match span {
+            Span::Text(text) => {
+                for (index, word) in text.split(' ').enumerate() {
+                    if index > 0 {
+                        words.push(Vec::new());
+                    }
+                    if !word.is_empty() {
+                        words.last_mut().unwrap().push(Span::Text(word));
+                    }
+                }
+            }
+            Span::Link(..) => words.last_mut().unwrap().push(span),
+        }
+    }
+    words.retain(|word| !word.is_empty());
+    (
+        Node {
+            width: px(ABOUT_WIDTH),
+            flex_wrap: FlexWrap::Wrap,
+            column_gap: px(WORD_GAP),
+            row_gap: px(WORD_GAP),
+            ..default()
+        },
+        Children::spawn(SpawnWith(move |line: &mut ChildSpawner| {
+            for word in words {
+                line.spawn(Node::default()).with_children(|pieces| {
+                    for span in word {
+                        match span {
+                            Span::Text(text) => pieces.spawn(ui::text(text, TEXT_SIZE, TEXT)),
+                            Span::Link(label, url) => pieces.spawn(ui::link(label, url)),
+                        };
+                    }
+                });
+            }
+        })),
     )
 }
 

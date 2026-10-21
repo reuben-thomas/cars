@@ -1,6 +1,6 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::text::FontSize;
+use bevy::text::{FontSize, Underline};
 use bevy::ui_widgets::{
     Activate, Button, Slider, SliderPrecision, SliderRange, SliderThumb, SliderValue, TrackClick,
     observe,
@@ -36,6 +36,9 @@ impl Plugin for WidgetsPlugin {
 struct CollapsibleBody;
 
 #[derive(Component)]
+pub struct Link(pub &'static str);
+
+#[derive(Component)]
 struct Disclosure;
 
 pub fn text(value: impl Into<String>, size: f32, color: Color) -> impl Bundle {
@@ -47,6 +50,24 @@ pub fn text(value: impl Into<String>, size: f32, color: Color) -> impl Bundle {
         },
         TextColor(color),
     )
+}
+
+pub fn link(label: &'static str, url: &'static str) -> impl Bundle {
+    (
+        Link(url),
+        Button,
+        observe(open_link),
+        text(label, TEXT_SIZE, HEADING),
+        Underline,
+    )
+}
+
+pub fn open_link(activate: On<Activate>, links: Query<&Link>) {
+    if let Ok(&Link(url)) = links.get(activate.entity)
+        && let Err(error) = webbrowser::open(url)
+    {
+        warn!("failed to open {url}: {error}");
+    }
 }
 
 pub fn keycap(content: impl Bundle, node: Node) -> impl Bundle {
