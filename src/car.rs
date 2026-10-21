@@ -69,6 +69,11 @@ impl Car {
         &self.params
     }
 
+    pub fn set_params(&mut self, params: Params) {
+        self.bicycle.set_params(params.bicycle.clone());
+        self.params = params;
+    }
+
     pub fn state(&self) -> &bicycle_model::State {
         self.bicycle.state()
     }

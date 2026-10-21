@@ -10,6 +10,8 @@ use cars::help::HelpPlugin;
 use cars::hud::HudPlugin;
 use cars::keymap::KeymapPlugin;
 use cars::player::{Player, PlayerPlugin};
+use cars::ui::WidgetsPlugin;
+use cars::vehicle_config::VehicleConfigPlugin;
 use cars::view::{PIXELS_PER_METRE, to_screen};
 
 const PHYSICS_HZ: f64 = 240.0;
@@ -37,6 +39,8 @@ fn main() {
             CarPlugin,
             CarBodyPlugin,
             PlayerPlugin,
+            WidgetsPlugin,
+            VehicleConfigPlugin,
             HelpPlugin,
             HudPlugin,
             CarDebugPlugin {

@@ -118,6 +118,10 @@ impl AckermannBicycle {
         &self.params
     }
 
+    pub fn set_params(&mut self, params: Params) {
+        self.params = params;
+    }
+
     pub fn state(&self) -> &State {
         &self.state
     }

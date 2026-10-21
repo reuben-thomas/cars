@@ -1,9 +1,8 @@
-use super::{Dimensions, Wheel};
+use super::{Dimensions, Paint, Wheel};
 use crate::car::{Car, Controls};
 use crate::view::to_screen;
 use bevy::prelude::*;
 
-const BODY: Color = Color::srgb_u8(0xef, 0xef, 0xef);
 const TRIM: Color = Color::srgb_u8(0x43, 0x43, 0x43);
 const ROOF: Color = Color::srgb_u8(0xd9, 0xd9, 0xd9);
 const HEADLIGHT: Color = Color::WHITE;
@@ -47,6 +46,7 @@ mod drawing {
         pub z: f32,
         pub lamp: Option<Lamp>,
         pub mirrored: bool,
+        pub painted: bool,
     }
 
     impl Part {
@@ -58,7 +58,7 @@ mod drawing {
     }
 
     pub const PARTS: [Part; 6] = [
-        part(-180.0, 0.0, 180.0, 680.0, super::BODY, 0.1),
+        painted(part(-180.0, 0.0, 180.0, 680.0, Color::NONE, 0.1)),
         part(-150.0, 180.0, 150.0, 640.0, super::TRIM, 0.2),
         part(-150.0, 320.0, 150.0, 580.0, super::ROOF, 0.3),
         mirrored(lamp(100.0, 0.0, 165.0, 35.0, Lamp::Head)),
@@ -80,6 +80,7 @@ mod drawing {
             z,
             lamp: None,
             mirrored: false,
+            painted: false,
         }
     }
 
@@ -87,6 +88,13 @@ mod drawing {
         Part {
             lamp: Some(lamp),
             ..part(left, top, right, bottom, lamp.color(), 0.2)
+        }
+    }
+
+    const fn painted(part: Part) -> Part {
+        Part {
+            painted: true,
+            ..part
         }
     }
 
@@ -113,11 +121,13 @@ fn sprite(rect: Rect, color: Color, z: f32) -> (Sprite, Transform) {
     )
 }
 
+type BodyChanged = Or<(Changed<Dimensions>, Changed<Paint>)>;
+
 pub(super) fn spawn(
     mut commands: Commands,
-    cars: Query<(Entity, &Car, &Dimensions), Changed<Dimensions>>,
+    cars: Query<(Entity, &Car, &Dimensions, &Paint), BodyChanged>,
 ) {
-    for (entity, car, dimensions) in &cars {
+    for (entity, car, dimensions, paint) in &cars {
         let chassis = dimensions.chassis();
         commands
             .entity(entity)
@@ -133,7 +143,8 @@ pub(super) fn spawn(
                             from_drawing(chassis, rect.min),
                             from_drawing(chassis, rect.max),
                         );
-                        let mut part_entity = parent.spawn(sprite(rect, part.color, part.z));
+                        let color = if part.painted { paint.0 } else { part.color };
+                        let mut part_entity = parent.spawn(sprite(rect, color, part.z));
                         if let Some(lamp) = part.lamp {
                             part_entity.insert(lamp);
                         }

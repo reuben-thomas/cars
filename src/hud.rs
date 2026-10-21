@@ -2,6 +2,7 @@ use crate::car::Car;
 use crate::keymap::{self, Action, ActionButton};
 use crate::player::Player;
 use crate::ui::{self, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, TEXT, TEXT_SIZE};
+use crate::vehicle_config;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
@@ -75,20 +76,21 @@ fn spawn(mut commands: Commands) {
             ..default()
         },
         GlobalZIndex(2),
-        children![text_button(Action::ToggleDebug, "Debug")],
+        children![vehicle_config::panel()],
     ));
     commands.spawn((
         Node {
             position_type: PositionType::Absolute,
             top: px(MARGIN),
             right: px(MARGIN),
+            column_gap: px(GAP),
             ..default()
         },
         GlobalZIndex(2),
-        children![text_button(
-            Action::ToggleHelp,
-            keymap::label(KeyCode::Slash)
-        )],
+        children![
+            text_button(Action::ToggleDebug, "Debug Mode"),
+            text_button(Action::ToggleHelp, keymap::label(KeyCode::Slash)),
+        ],
     ));
 }
 

@@ -5,6 +5,8 @@ use super::{Axle, Car};
 use crate::view::to_screen;
 use bevy::prelude::*;
 
+pub const PAINT: Color = Color::srgb_u8(0xef, 0xef, 0xef);
+
 pub struct CarBodyPlugin;
 
 impl Plugin for CarBodyPlugin {
@@ -23,6 +25,7 @@ impl Plugin for CarBodyPlugin {
 }
 
 #[derive(Component, Clone, Debug)]
+#[require(Paint)]
 pub struct Dimensions {
     pub chassis_width: f32,
     pub cg_to_chassis_front: f32,
@@ -48,6 +51,15 @@ impl Default for Dimensions {
             wheel_radius: 0.33,
             wheel_width: 0.2,
         }
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct Paint(pub Color);
+
+impl Default for Paint {
+    fn default() -> Self {
+        Self(PAINT)
     }
 }
 

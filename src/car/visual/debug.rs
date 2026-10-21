@@ -1,6 +1,7 @@
 use super::Dimensions;
 use crate::bicycle_model::{Model, dynamic};
 use crate::car::{Axle, Car};
+use crate::ui::TEXT;
 use crate::view::to_screen;
 use bevy::prelude::*;
 use bevy::text::FontSize;
@@ -19,7 +20,6 @@ const CHASSIS: Color = Color::srgb(0.8, 0.8, 0.8);
 const VELOCITY: Color = Color::srgb(0.1, 1.0, 0.3);
 const FRAME: Color = Color::srgb(0.9, 0.9, 0.9);
 const DRAG: Color = Color::srgb(1.0, 0.3, 0.8);
-const TEXT: Color = Color::srgb(0.85, 0.9, 0.95);
 const TRAIL_ALPHA: f32 = 0.6;
 
 const FRONT_WHEEL: Color = Color::srgb(1.0, 0.85, 0.1);

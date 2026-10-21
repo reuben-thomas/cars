@@ -6,4 +6,5 @@ pub mod keymap;
 pub mod physics;
 pub mod player;
 pub mod ui;
+pub mod vehicle_config;
 pub mod view;
