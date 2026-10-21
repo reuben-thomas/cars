@@ -1,6 +1,6 @@
 # cars
 
-<p align="center"><img src="assets/demo.gif" alt="Driving the car around the grid" width="400"></p>
+<p align="center"><img src="assets/demo.gif" alt="Driving the car around the grid" width="100%"></p>
 
 This project was inspired by Pat Kerr's [2D Vehicles](https://patkerr.co.uk/2d-vehicles/) as a throwback to his initial vehicle physics implementation that was included in GTA.
 
