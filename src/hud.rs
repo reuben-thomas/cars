@@ -3,14 +3,19 @@ use crate::keymap::{self, Action, ActionButton};
 use crate::player::Player;
 use crate::ui::{self, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, TEXT, TEXT_SIZE};
 use crate::vehicle_config;
+use bevy::asset::RenderAssetUsages;
+use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui_widgets::Button;
+use bevy::ui::Pressed;
+use bevy::ui_widgets::{Activate, Button, observe};
 
 const MARGIN: f32 = 16.0;
 const BUTTON_SIZE: f32 = 48.0;
 const GAP: f32 = 4.0;
 const ARROW_SIZE: f32 = 12.0;
+const ICON_SIZE: f32 = 24.0;
+const REPOSITORY: &str = "https://github.com/reuben-thomas/cars";
 
 pub struct HudPlugin;
 
@@ -24,7 +29,21 @@ impl Plugin for HudPlugin {
 #[derive(Component)]
 struct Readout;
 
-fn spawn(mut commands: Commands) {
+#[derive(Component)]
+struct RepositoryLink;
+
+fn spawn(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    let github = images.add(
+        Image::from_buffer(
+            include_bytes!("../assets/github.png"),
+            ImageType::Extension("png"),
+            CompressedImageFormats::NONE,
+            true,
+            ImageSampler::Default,
+            RenderAssetUsages::RENDER_WORLD,
+        )
+        .expect("invalid github icon"),
+    );
     commands.spawn((
         Node {
             position_type: PositionType::Absolute,
@@ -90,6 +109,7 @@ fn spawn(mut commands: Commands) {
         children![
             text_button(Action::ToggleDebug, "Debug Mode"),
             text_button(Action::ToggleHelp, keymap::label(KeyCode::Slash)),
+            repository_button(github),
         ],
     ));
 }
@@ -103,9 +123,33 @@ fn text_button(action: Action, label: impl Into<String>) -> impl Bundle {
     button(action, ui::text(label, TEXT_SIZE, TEXT))
 }
 
-fn button(action: Action, content: impl Bundle) -> impl Bundle {
+fn repository_button(icon: Handle<Image>) -> impl Bundle {
     (
-        ActionButton(action),
+        RepositoryLink,
+        observe(open_repository),
+        plain_button((
+            ImageNode::new(icon).with_color(TEXT),
+            Node {
+                width: px(ICON_SIZE),
+                height: px(ICON_SIZE),
+                ..default()
+            },
+        )),
+    )
+}
+
+fn open_repository(_: On<Activate>) {
+    if let Err(error) = webbrowser::open(REPOSITORY) {
+        warn!("failed to open {REPOSITORY}: {error}");
+    }
+}
+
+fn button(action: Action, content: impl Bundle) -> impl Bundle {
+    (ActionButton(action), plain_button(content))
+}
+
+fn plain_button(content: impl Bundle) -> impl Bundle {
+    (
         Button,
         Hovered::default(),
         ui::keycap(
@@ -124,10 +168,22 @@ fn button(action: Action, content: impl Bundle) -> impl Bundle {
 
 fn style_buttons(
     actions: Res<ButtonInput<Action>>,
-    mut buttons: Query<(&ActionButton, &Hovered, &mut BackgroundColor)>,
+    mut buttons: Query<
+        (
+            Option<&ActionButton>,
+            Has<Pressed>,
+            &Hovered,
+            &mut BackgroundColor,
+        ),
+        Or<(With<ActionButton>, With<RepositoryLink>)>,
+    >,
 ) {
-    for (&ActionButton(action), hovered, mut background) in &mut buttons {
-        let color = if actions.pressed(action) {
+    for (action, pressed, hovered, mut background) in &mut buttons {
+        let pressed = match action {
+            Some(&ActionButton(action)) => actions.pressed(action),
+            None => pressed,
+        };
+        let color = if pressed {
             KEYCAP_PRESSED
         } else if hovered.get() {
             KEYCAP_HOVERED
