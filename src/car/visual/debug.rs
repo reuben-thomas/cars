@@ -4,6 +4,7 @@ use crate::car::{Axle, Car};
 use crate::ui::TEXT;
 use crate::view::to_screen;
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 use bevy::text::FontSize;
 use std::collections::VecDeque;
 
@@ -11,8 +12,7 @@ use std::collections::VecDeque;
 const ARROW_HEAD: f32 = 0.3;
 /// Half-size of the CG marker [m].
 const CG_MARKER: f32 = 0.15;
-/// Offset of the debug text from the CG on screen [px].
-const TEXT_OFFSET: Vec2 = Vec2::new(150.0, 60.0);
+const TEXT_OFFSET: f32 = 3.5;
 /// Font size of the debug text [px].
 const TEXT_SIZE: f32 = 13.0;
 
@@ -136,6 +136,7 @@ fn spawn(mut commands: Commands, cars: Query<Entity, Added<Car>>) {
         commands.spawn((
             DebugText(car),
             Text2d::default(),
+            Anchor::CENTER_LEFT,
             font.clone(),
             TextColor(TEXT),
             Transform::default(),
@@ -189,7 +190,7 @@ fn update_text(
         }
 
         let state = car.state();
-        transform.translation = (to_screen(state.position) + TEXT_OFFSET).extend(1.0);
+        transform.translation = to_screen(state.position + Vec2::X * TEXT_OFFSET).extend(1.0);
 
         let model = car.model();
         let speed = car.speed() * 3.6;
