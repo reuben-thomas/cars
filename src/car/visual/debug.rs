@@ -97,6 +97,12 @@ pub struct DebugText(Entity);
 #[derive(Component, Default)]
 pub struct Trail(VecDeque<TrailPoint>);
 
+impl Trail {
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+
 struct TrailPoint {
     time: f32,
     front: Vec2,
@@ -115,12 +121,16 @@ fn spawn(mut commands: Commands, cars: Query<Entity, Added<Car>>) {
     for car in &cars {
         commands.entity(car).insert(Trail::default());
         let key = [
-            ("\n\nkey", TEXT),
-            ("\nvelocity", VELOCITY),
-            ("\nfront axle: wheel, forces, trail", FRONT_WHEEL),
-            ("\nrear axle: wheel, forces, trail", REAR_WHEEL),
-            ("\naerodynamic drag", DRAG),
-            ("\nchassis and bicycle model frame", CHASSIS),
+            ("\n\nkey: ", TEXT),
+            ("velocity", VELOCITY),
+            (", ", TEXT),
+            ("front axle", FRONT_WHEEL),
+            (", ", TEXT),
+            ("rear axle", REAR_WHEEL),
+            (", ", TEXT),
+            ("aerodynamic drag", DRAG),
+            (", ", TEXT),
+            ("frame", CHASSIS),
         ]
         .map(|(label, color)| (TextSpan::new(label), font.clone(), TextColor(color)));
         commands.spawn((

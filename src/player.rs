@@ -1,5 +1,5 @@
 use crate::car::visual::ShowBody;
-use crate::car::visual::debug::CarGizmos;
+use crate::car::visual::debug::{CarGizmos, Trail};
 use crate::car::{Car, CarSystems, Controls};
 use crate::keymap::Action;
 use bevy::prelude::*;
@@ -15,7 +15,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(FixedUpdate, drive.before(CarSystems))
-            .add_systems(Update, (reset, toggle_body, toggle_debug));
+            .add_systems(Update, (reset, toggle_debug));
     }
 }
 
@@ -49,26 +49,31 @@ fn drive(
     }
 }
 
-fn reset(actions: Res<ButtonInput<Action>>, mut cars: Query<&mut Car, With<Player>>) {
+fn reset(
+    actions: Res<ButtonInput<Action>>,
+    mut cars: Query<(&mut Car, Option<&mut Trail>), With<Player>>,
+) {
     if !actions.just_pressed(Action::Reset) {
         return;
     }
-    for mut car in &mut cars {
+    for (mut car, trail) in &mut cars {
         let reset = Car::new(car.params().clone());
         *car = reset;
+        if let Some(mut trail) = trail {
+            trail.clear();
+        }
     }
 }
 
-fn toggle_body(actions: Res<ButtonInput<Action>>, mut show: ResMut<ShowBody>) {
-    if actions.just_pressed(Action::ToggleBody) {
-        show.0 = !show.0;
-    }
-}
-
-fn toggle_debug(actions: Res<ButtonInput<Action>>, mut store: ResMut<GizmoConfigStore>) {
+fn toggle_debug(
+    actions: Res<ButtonInput<Action>>,
+    mut store: ResMut<GizmoConfigStore>,
+    mut show: ResMut<ShowBody>,
+) {
     if actions.just_pressed(Action::ToggleDebug) {
         let config = store.config_mut::<CarGizmos>().0;
         config.enabled = !config.enabled;
+        show.0 = !config.enabled;
     }
 }
 
