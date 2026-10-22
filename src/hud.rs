@@ -177,7 +177,7 @@ fn style_buttons(
     for (action, pressed, hovered, mut background) in &mut buttons {
         let pressed = match action {
             Some(&ActionButton(action)) => actions.pressed(action),
-            None => pressed && hovered.get(),
+            None => pressed,
         };
         let color = if pressed {
             KEYCAP_PRESSED
