@@ -6,8 +6,6 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, SliderValue, ValueChange, observe};
 
-const WIDTH: f32 = 390.0;
-const LABEL_WIDTH: f32 = 140.0;
 const VALUE_WIDTH: f32 = 100.0;
 
 const PAINTS: [Color; 6] = [
@@ -151,32 +149,19 @@ struct FieldValue(usize);
 #[derive(Component, Clone, Copy)]
 struct Swatch(Color);
 
-pub fn panel() -> impl Bundle {
-    (
-        ui::panel(Node {
-            width: px(WIDTH),
-            padding: UiRect::all(px(12)),
-            ..default()
-        }),
-        children![ui::collapsible("Vehicle Config", body())],
-    )
-}
-
-fn body() -> impl Bundle {
-    let rows = SpawnWith(|body: &mut ChildSpawner| {
-        body.spawn(paint_row());
-        for index in 0..FIELDS.len() {
-            body.spawn(field_row(index));
-        }
-    });
+pub fn section() -> impl Bundle {
     (
         Node {
-            display: Display::None,
             flex_direction: FlexDirection::Column,
             row_gap: px(8),
             ..default()
         },
-        Children::spawn(rows),
+        Children::spawn(SpawnWith(|body: &mut ChildSpawner| {
+            body.spawn(paint_row());
+            for index in 0..FIELDS.len() {
+                body.spawn(field_row(index));
+            }
+        })),
     )
 }
 
@@ -192,16 +177,37 @@ fn paint_row() -> impl Bundle {
             ..default()
         },
         children![
-            ui::label("Colour", LABEL_WIDTH),
+            ui::label("Colour"),
             (
                 Node {
+                    flex_wrap: FlexWrap::Wrap,
                     column_gap: px(6),
+                    row_gap: px(6),
                     ..default()
                 },
                 Children::spawn(swatches),
             ),
         ],
     )
+}
+
+fn paint(
+    activate: On<Activate>,
+    swatches: Query<&Swatch>,
+    mut car: Single<&mut Paint, With<Player>>,
+) {
+    if let Ok(&Swatch(color)) = swatches.get(activate.entity) {
+        car.set_if_neq(Paint(color));
+    }
+}
+
+fn style_swatches(
+    car: Single<&Paint, With<Player>>,
+    mut swatches: Query<(&Swatch, &Hovered, &mut BorderColor)>,
+) {
+    for (&Swatch(color), hovered, mut border) in &mut swatches {
+        border.set_if_neq(ui::swatch_border(car.0 == color, hovered.get()));
+    }
 }
 
 fn field_row(index: usize) -> impl Bundle {
@@ -213,7 +219,7 @@ fn field_row(index: usize) -> impl Bundle {
             ..default()
         },
         children![
-            ui::label(field.label, LABEL_WIDTH),
+            ui::label(field.label),
             (
                 FieldSlider(index),
                 ui::slider(field.min, field.max, field.precision),
@@ -229,16 +235,6 @@ fn field_row(index: usize) -> impl Bundle {
             ),
         ],
     )
-}
-
-fn paint(
-    activate: On<Activate>,
-    swatches: Query<&Swatch>,
-    mut car: Single<&mut Paint, With<Player>>,
-) {
-    if let Ok(&Swatch(color)) = swatches.get(activate.entity) {
-        car.set_if_neq(Paint(color));
-    }
 }
 
 fn set_field(
@@ -281,14 +277,5 @@ fn update_values(
                 field.unit
             );
         }
-    }
-}
-
-fn style_swatches(
-    car: Single<&Paint, With<Player>>,
-    mut swatches: Query<(&Swatch, &Hovered, &mut BorderColor)>,
-) {
-    for (&Swatch(color), hovered, mut border) in &mut swatches {
-        border.set_if_neq(ui::swatch_border(car.0 == color, hovered.get()));
     }
 }

@@ -6,6 +6,7 @@ const KEYS_WIDTH: f32 = 150.0;
 const KEYCAP_SIZE: f32 = 24.0;
 const ARROW_SIZE: f32 = 7.0;
 const ABOUT_WIDTH: f32 = 420.0;
+const MARGIN: f32 = 16.0;
 const WORD_GAP: f32 = 4.0;
 
 const OVERLAY: Color = Color::srgba(0.0, 0.0, 0.0, 0.6);
@@ -61,6 +62,7 @@ fn spawn_page(mut commands: Commands, keymap: Res<Keymap>) {
                 position_type: PositionType::Absolute,
                 width: percent(100),
                 height: percent(100),
+                padding: UiRect::all(px(MARGIN)),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 ..default()
@@ -168,7 +170,7 @@ fn paragraph(spans: &[Span]) -> impl Bundle {
     words.retain(|word| !word.is_empty());
     (
         Node {
-            width: px(ABOUT_WIDTH),
+            max_width: px(ABOUT_WIDTH),
             flex_wrap: FlexWrap::Wrap,
             column_gap: px(WORD_GAP),
             row_gap: px(WORD_GAP),

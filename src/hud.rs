@@ -1,8 +1,11 @@
 use crate::car::Car;
 use crate::keymap::{self, Action, ActionButton};
 use crate::player::Player;
-use crate::ui::{self, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, TEXT, TEXT_SIZE};
-use crate::vehicle_config;
+use crate::settings;
+use crate::ui::{
+    self, BORDER_WIDTH, BUTTON_SIZE, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, RADIUS, TEXT,
+    TEXT_SIZE,
+};
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
 use bevy::picking::hover::Hovered;
@@ -11,7 +14,6 @@ use bevy::ui::Pressed;
 use bevy::ui_widgets::{Button, observe};
 
 const MARGIN: f32 = 16.0;
-const BUTTON_SIZE: f32 = 48.0;
 const GAP: f32 = 4.0;
 const ARROW_SIZE: f32 = 12.0;
 const ICON_SIZE: f32 = 24.0;
@@ -92,24 +94,26 @@ fn spawn(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             position_type: PositionType::Absolute,
             top: px(MARGIN),
             left: px(MARGIN),
-            ..default()
-        },
-        GlobalZIndex(2),
-        children![vehicle_config::panel()],
-    ));
-    commands.spawn((
-        Node {
-            position_type: PositionType::Absolute,
-            top: px(MARGIN),
             right: px(MARGIN),
+            justify_content: JustifyContent::SpaceBetween,
+            align_items: AlignItems::FlexStart,
             column_gap: px(GAP),
             ..default()
         },
         GlobalZIndex(2),
         children![
-            text_button(Action::ToggleDebug, "Debug Mode"),
-            text_button(Action::ToggleHelp, keymap::label(KeyCode::Slash)),
-            repository_button(github),
+            settings::panel(),
+            (
+                Node {
+                    flex_shrink: 0.0,
+                    column_gap: px(GAP),
+                    ..default()
+                },
+                children![
+                    text_button(Action::ToggleHelp, keymap::label(KeyCode::Slash)),
+                    repository_button(github),
+                ],
+            ),
         ],
     ));
 }
@@ -153,8 +157,8 @@ fn plain_button(content: impl Bundle) -> impl Bundle {
                 min_width: px(BUTTON_SIZE),
                 min_height: px(BUTTON_SIZE),
                 padding: UiRect::horizontal(px(10)),
-                border: UiRect::all(px(2)),
-                border_radius: BorderRadius::all(px(8)),
+                border: UiRect::all(px(BORDER_WIDTH)),
+                border_radius: BorderRadius::all(px(RADIUS)),
                 ..default()
             },
         ),

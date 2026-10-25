@@ -10,6 +10,7 @@ use cars::help::HelpPlugin;
 use cars::hud::HudPlugin;
 use cars::keymap::KeymapPlugin;
 use cars::player::{Player, PlayerPlugin};
+use cars::settings::SettingsPlugin;
 use cars::ui::WidgetsPlugin;
 use cars::vehicle_config::VehicleConfigPlugin;
 use cars::view::{PIXELS_PER_METRE, to_screen};
@@ -41,6 +42,7 @@ fn main() {
             PlayerPlugin,
             WidgetsPlugin,
             VehicleConfigPlugin,
+            SettingsPlugin,
             HelpPlugin,
             HudPlugin,
             CarDebugPlugin {

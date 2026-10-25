@@ -1,6 +1,7 @@
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{FontSize, Underline};
+use bevy::ui::Checked;
 use bevy::ui_widgets::{
     Activate, Button, Slider, SliderPrecision, SliderRange, SliderThumb, SliderValue, TrackClick,
     observe,
@@ -18,17 +19,26 @@ pub const BORDER: Color = Color::srgb(0.35, 0.42, 0.5);
 pub const HEADING: Color = Color::srgb(0.55, 0.7, 0.85);
 pub const TEXT: Color = Color::srgb(0.85, 0.9, 0.95);
 
+pub const BUTTON_SIZE: f32 = 48.0;
+pub const BORDER_WIDTH: f32 = 2.0;
+pub const RADIUS: f32 = 8.0;
+
+const LABEL_WIDTH: f32 = 140.0;
+
 pub const SLIDER_HEIGHT: f32 = 16.0;
 pub const TRACK_HEIGHT: f32 = 4.0;
 pub const THUMB_SIZE: f32 = 12.0;
 pub const SWATCH_SIZE: f32 = 22.0;
+pub const SWITCH_WIDTH: f32 = 40.0;
+pub const SWITCH_HEIGHT: f32 = 24.0;
+pub const KNOB_SIZE: f32 = 14.0;
 pub const DISCLOSURE_SIZE: f32 = 6.0;
 
 pub struct WidgetsPlugin;
 
 impl Plugin for WidgetsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, position_thumbs);
+        app.add_systems(Update, (position_thumbs, position_knobs));
     }
 }
 
@@ -40,6 +50,12 @@ pub struct Link(pub &'static str);
 
 #[derive(Component)]
 struct Disclosure;
+
+#[derive(Component)]
+struct Switch;
+
+#[derive(Component)]
+struct SwitchKnob;
 
 pub fn text(value: impl Into<String>, size: f32, color: Color) -> impl Bundle {
     (
@@ -87,8 +103,8 @@ pub fn panel(node: Node) -> impl Bundle {
     (
         Node {
             flex_direction: FlexDirection::Column,
-            border: UiRect::all(px(2)),
-            border_radius: BorderRadius::all(px(12)),
+            border: UiRect::all(px(BORDER_WIDTH)),
+            border_radius: BorderRadius::all(px(RADIUS)),
             ..node
         },
         BackgroundColor(PANEL),
@@ -129,10 +145,10 @@ pub fn chevron(size: f32, rotation: Rot2) -> impl Bundle {
     )
 }
 
-pub fn label(value: impl Into<String>, width: f32) -> impl Bundle {
+pub fn label(value: impl Into<String>) -> impl Bundle {
     (
         Node {
-            width: px(width),
+            width: px(LABEL_WIDTH),
             flex_shrink: 0.0,
             ..default()
         },
@@ -140,11 +156,10 @@ pub fn label(value: impl Into<String>, width: f32) -> impl Bundle {
     )
 }
 
-pub fn collapsible(title: impl Into<String>, content: impl Bundle) -> impl Bundle {
+pub fn collapsible(title: impl Bundle, min_height: f32, content: impl Bundle) -> impl Bundle {
     (
         Node {
             flex_direction: FlexDirection::Column,
-            row_gap: px(10),
             ..default()
         },
         children![
@@ -152,6 +167,7 @@ pub fn collapsible(title: impl Into<String>, content: impl Bundle) -> impl Bundl
                 Button,
                 Hovered::default(),
                 Node {
+                    min_height: px(min_height),
                     justify_content: JustifyContent::SpaceBetween,
                     align_items: AlignItems::Center,
                     column_gap: px(12),
@@ -159,7 +175,7 @@ pub fn collapsible(title: impl Into<String>, content: impl Bundle) -> impl Bundl
                 },
                 observe(toggle_collapsible),
                 children![
-                    text(title, TEXT_SIZE, HEADING),
+                    title,
                     (
                         Disclosure,
                         UiTransform {
@@ -177,7 +193,15 @@ pub fn collapsible(title: impl Into<String>, content: impl Bundle) -> impl Bundl
                     ),
                 ],
             ),
-            (CollapsibleBody, content),
+            (
+                CollapsibleBody,
+                Node {
+                    display: Display::None,
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                children![content],
+            ),
         ],
     )
 }
@@ -311,4 +335,58 @@ pub fn swatch_border(selected: bool, hovered: bool) -> BorderColor {
         BORDER
     };
     BorderColor::all(color)
+}
+
+pub fn switch() -> impl Bundle {
+    (
+        Switch,
+        Button,
+        Hovered::default(),
+        keycap(
+            (
+                SwitchKnob,
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: px(KNOB_SIZE),
+                    height: px(KNOB_SIZE),
+                    border_radius: BorderRadius::MAX,
+                    ..default()
+                },
+                BackgroundColor(BORDER),
+            ),
+            Node {
+                width: px(SWITCH_WIDTH),
+                height: px(SWITCH_HEIGHT),
+                flex_shrink: 0.0,
+                border: UiRect::all(px(BORDER_WIDTH)),
+                border_radius: BorderRadius::MAX,
+                ..default()
+            },
+        ),
+    )
+}
+
+fn position_knobs(
+    switches: Query<(Has<Checked>, &Children), With<Switch>>,
+    mut knobs: Query<(&mut Node, &mut BackgroundColor), With<SwitchKnob>>,
+) {
+    let inset = (SWITCH_HEIGHT - 2.0 * BORDER_WIDTH - KNOB_SIZE) / 2.0;
+    for (checked, children) in &switches {
+        let (left, color) = if checked {
+            (
+                px(SWITCH_WIDTH - 2.0 * BORDER_WIDTH - KNOB_SIZE - inset),
+                TEXT,
+            )
+        } else {
+            (px(inset), BORDER)
+        };
+        for child in children.iter() {
+            if let Ok((mut knob, mut background)) = knobs.get_mut(child) {
+                if knob.left != left {
+                    knob.left = left;
+                }
+                background.set_if_neq(BackgroundColor(color));
+            }
+        }
+    }
 }
