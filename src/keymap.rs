@@ -1,6 +1,8 @@
+use bevy::ecs::entity::EntityHashSet;
 use bevy::input::InputSystems;
 use bevy::picking::PickingSystems;
 use bevy::picking::events::PointerPress;
+use bevy::picking::hover::HoverMap;
 use bevy::prelude::*;
 use bevy::ui::Pressed;
 use std::borrow::Cow;
@@ -15,7 +17,8 @@ impl Plugin for KeymapPlugin {
             .add_systems(First, clear_actions)
             .add_systems(
                 PreUpdate,
-                update_actions
+                (release_buttons, update_actions)
+                    .chain()
                     .after(InputSystems)
                     .after(PickingSystems::Last),
             );
@@ -110,6 +113,24 @@ fn press_button(
 ) {
     if let Ok(&ActionButton(action)) = buttons.get(press.entity) {
         actions.press(action);
+    }
+}
+
+fn release_buttons(
+    mut commands: Commands,
+    hover_map: Res<HoverMap>,
+    parents: Query<&ChildOf>,
+    buttons: Query<Entity, (With<ActionButton>, With<Pressed>)>,
+) {
+    let hovered: EntityHashSet = hover_map
+        .values()
+        .flat_map(|hits| hits.keys())
+        .flat_map(|&entity| std::iter::once(entity).chain(parents.iter_ancestors(entity)))
+        .collect();
+    for button in &buttons {
+        if !hovered.contains(&button) {
+            commands.entity(button).remove::<Pressed>();
+        }
     }
 }
 
