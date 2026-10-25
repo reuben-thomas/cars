@@ -22,6 +22,8 @@ pub struct Params {
     pub cg_to_rear_axle: f32,
     /// Cornering stiffness per unit axle load [1/rad].
     pub cornering_coefficient: f32,
+    /// Tire-road sliding friction coefficient, mu.
+    pub friction_coefficient: f32,
     /// Rolling resistance [kg/s].
     pub rolling_resistance: f32,
     /// Aerodynamic drag coefficient, Cd.
@@ -45,15 +47,27 @@ impl Params {
         -self.rolling_resistance * speed
     }
 
+    /// Front and rear static axle loads [N].
+    pub const fn axle_loads(&self) -> (f32, f32) {
+        let weight = self.mass * GRAVITY;
+        (
+            weight * self.cg_to_rear_axle / self.wheelbase(),
+            weight * self.cg_to_front_axle / self.wheelbase(),
+        )
+    }
+
     /// Front and rear axle cornering stiffness [N/rad].
     pub const fn cornering_stiffness(&self) -> (f32, f32) {
-        let weight = self.mass * GRAVITY;
-        let front_load = weight * self.cg_to_rear_axle / self.wheelbase();
-        let rear_load = weight * self.cg_to_front_axle / self.wheelbase();
+        let (front_load, rear_load) = self.axle_loads();
         (
             front_load * self.cornering_coefficient,
             rear_load * self.cornering_coefficient,
         )
+    }
+
+    /// Friction force of the rear tires sliding on locked wheels [N].
+    pub const fn locked_rear_force(&self) -> f32 {
+        self.friction_coefficient * self.axle_loads().1
     }
 }
 
@@ -65,6 +79,8 @@ pub struct Input {
     pub front_longitudinal_force: f32,
     /// Force at the rear axle along the rear wheel's direction vector [N].
     pub rear_longitudinal_force: f32,
+    /// Rear wheels are locked, so the rear tires slide instead of rolling.
+    pub rear_locked: bool,
 }
 
 impl Input {

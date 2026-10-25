@@ -300,26 +300,29 @@ fn draw_bicycle_model(
         FRAME,
     );
 
-    let (front_lateral_force, rear_lateral_force) = match car.model() {
+    let (front_force, rear_force) = match car.model() {
         Model::Dynamic => {
-            let (front, rear) = dynamic::lateral_forces(params, state, input.steering_angle);
-            (Some(front), Some(rear))
+            let (front, rear) = dynamic::tire_forces(params, state, *input);
+            ((front.x, Some(front.y)), (rear.x, Some(rear.y)))
         }
-        Model::Kinematic => (None, None),
+        Model::Kinematic => (
+            (input.front_longitudinal_force, None),
+            (input.rear_longitudinal_force, None),
+        ),
     };
     let axles = [
         AxleState {
             position: front,
             rotation: pose.rotation * car.wheel_rotation(Axle::Front),
-            longitudinal_force: input.front_longitudinal_force,
-            lateral_force: front_lateral_force,
+            longitudinal_force: front_force.0,
+            lateral_force: front_force.1,
             color: FRONT_WHEEL,
         },
         AxleState {
             position: rear,
             rotation: pose.rotation * car.wheel_rotation(Axle::Rear),
-            longitudinal_force: input.rear_longitudinal_force,
-            lateral_force: rear_lateral_force,
+            longitudinal_force: rear_force.0,
+            lateral_force: rear_force.1,
             color: REAR_WHEEL,
         },
     ];

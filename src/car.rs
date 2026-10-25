@@ -28,6 +28,8 @@ pub struct Controls {
     pub steering: f32,
     /// Drive backwards when throttle is applied.
     pub reverse: bool,
+    /// Lock the rear wheels.
+    pub handbrake: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -128,6 +130,7 @@ impl Car {
             front_longitudinal_force: p.drivetrain.front_bias() * drive
                 + p.brakes.front_bias() * brake,
             rear_longitudinal_force: p.drivetrain.rear_bias * drive + p.brakes.rear_bias * brake,
+            rear_locked: controls.handbrake,
         }
     }
 }

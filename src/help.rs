@@ -1,4 +1,4 @@
-use crate::keymap::{self, Action, Binding, Keymap};
+use crate::keymap::{self, Action, ActionButton, Binding, Keymap};
 use crate::ui::{self, HEADING, HEADING_SIZE, TEXT, TEXT_SIZE, TITLE_SIZE};
 use bevy::prelude::*;
 
@@ -41,6 +41,10 @@ const ABOUT: [&[Span]; 2] = [
         Span::Text("."),
     ],
 ];
+const REPOSITORY: (&str, &str) = (
+    "reuben-thomas/cars",
+    "https://github.com/reuben-thomas/cars",
+);
 
 pub struct HelpPlugin;
 
@@ -73,26 +77,54 @@ fn spawn_page(mut commands: Commands, keymap: Res<Keymap>) {
         ))
         .with_children(|page| {
             page.spawn(ui::panel(Node {
+                max_width: percent(100),
                 row_gap: px(16),
                 padding: UiRect::all(px(24)),
                 ..default()
             }))
             .with_children(|panel| {
-                panel.spawn(ui::text("Keybindings", TITLE_SIZE, TEXT));
-                for group in keymap.bindings().chunk_by(|a, b| a.group == b.group) {
-                    panel
-                        .spawn(Node {
-                            flex_direction: FlexDirection::Column,
-                            row_gap: px(6),
-                            ..default()
-                        })
-                        .with_children(|section| {
-                            section.spawn(ui::text(group[0].group.name(), HEADING_SIZE, HEADING));
-                            for binding in group {
-                                section.spawn(row(binding));
-                            }
-                        });
-                }
+                panel.spawn((
+                    Node {
+                        justify_content: JustifyContent::SpaceBetween,
+                        align_items: AlignItems::Center,
+                        column_gap: px(16),
+                        ..default()
+                    },
+                    children![
+                        ui::text("Help", TITLE_SIZE, TEXT),
+                        (
+                            ActionButton(Action::CloseHelp),
+                            ui::button(ui::text("X", TEXT_SIZE, TEXT)),
+                        ),
+                    ],
+                ));
+                panel
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(10),
+                        ..default()
+                    })
+                    .with_children(|section| {
+                        section.spawn(ui::text("Keybindings", HEADING_SIZE, HEADING));
+                        for group in keymap.bindings().chunk_by(|a, b| a.group == b.group) {
+                            section
+                                .spawn(Node {
+                                    flex_direction: FlexDirection::Column,
+                                    row_gap: px(6),
+                                    ..default()
+                                })
+                                .with_children(|group_section| {
+                                    group_section.spawn(ui::text(
+                                        group[0].group.name(),
+                                        TEXT_SIZE,
+                                        HEADING,
+                                    ));
+                                    for binding in group {
+                                        group_section.spawn(row(binding));
+                                    }
+                                });
+                        }
+                    });
                 panel
                     .spawn(Node {
                         flex_direction: FlexDirection::Column,
@@ -105,6 +137,17 @@ fn spawn_page(mut commands: Commands, keymap: Res<Keymap>) {
                             section.spawn(paragraph(spans));
                         }
                     });
+                panel.spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(10),
+                        ..default()
+                    },
+                    children![
+                        ui::text("Source", HEADING_SIZE, HEADING),
+                        ui::link(REPOSITORY.0, REPOSITORY.1),
+                    ],
+                ));
             });
         });
 }

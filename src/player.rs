@@ -46,6 +46,7 @@ fn drive(
         controls.brake = if braking { 1.0 } else { 0.0 };
         controls.throttle = if braking { 0.0 } else { request.abs() };
         controls.reverse = request < 0.0;
+        controls.handbrake = actions.pressed(Action::Handbrake);
     }
 }
 

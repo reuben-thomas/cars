@@ -31,6 +31,7 @@ pub enum Action {
     Brake,
     SteerLeft,
     SteerRight,
+    Handbrake,
     Reset,
     ToggleDebug,
     ToggleHelp,
@@ -39,7 +40,7 @@ pub enum Action {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Group {
-    Driving,
+    Drive,
     View,
     Debug,
 }
@@ -47,7 +48,7 @@ pub enum Group {
 impl Group {
     pub fn name(self) -> &'static str {
         match self {
-            Group::Driving => "Driving",
+            Group::Drive => "Drive",
             Group::View => "View",
             Group::Debug => "Debug",
         }
@@ -80,11 +81,12 @@ impl Default for Keymap {
         };
         Self {
             bindings: vec![
-                binding(Accelerate, &[KeyW, ArrowUp], Driving, "Accelerate"),
-                binding(Brake, &[KeyS, ArrowDown], Driving, "Brake / reverse"),
-                binding(SteerLeft, &[KeyA, ArrowLeft], Driving, "Steer left"),
-                binding(SteerRight, &[KeyD, ArrowRight], Driving, "Steer right"),
-                binding(Reset, &[KeyR], Driving, "Reset car"),
+                binding(Accelerate, &[KeyW, ArrowUp], Drive, "Accelerate"),
+                binding(Brake, &[KeyS, ArrowDown], Drive, "Brake / reverse"),
+                binding(SteerLeft, &[KeyA, ArrowLeft], Drive, "Steer left"),
+                binding(SteerRight, &[KeyD, ArrowRight], Drive, "Steer right"),
+                binding(Handbrake, &[Space], Drive, "Handbrake"),
+                binding(Reset, &[KeyR], Drive, "Reset car"),
                 binding(ToggleHelp, &[Slash], View, "Toggle this help"),
                 binding(CloseHelp, &[Escape], View, "Close this help"),
                 binding(ToggleDebug, &[Backquote], Debug, "Toggle debug overlay"),

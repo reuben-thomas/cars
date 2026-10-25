@@ -27,7 +27,7 @@ struct Field {
     set: fn(&mut Params, f32),
 }
 
-const FIELDS: [Field; 11] = [
+const FIELDS: [Field; 12] = [
     Field {
         label: "Mass",
         unit: "kg",
@@ -54,6 +54,15 @@ const FIELDS: [Field; 11] = [
         precision: 1,
         get: |p| p.bicycle.cornering_coefficient,
         set: |p, v| p.bicycle.cornering_coefficient = v,
+    },
+    Field {
+        label: "Friction coeff",
+        unit: "",
+        min: 0.1,
+        max: 1.5,
+        precision: 2,
+        get: |p| p.bicycle.friction_coefficient,
+        set: |p, v| p.bicycle.friction_coefficient = v,
     },
     Field {
         label: "Rolling resist",
@@ -228,7 +237,7 @@ fn field_row(index: usize) -> impl Bundle {
             (
                 Node {
                     width: px(VALUE_WIDTH),
-                    justify_content: JustifyContent::End,
+                    justify_content: JustifyContent::Start,
                     ..default()
                 },
                 children![(FieldValue(index), ui::text("", TEXT_SIZE, TEXT))],

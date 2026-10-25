@@ -41,15 +41,33 @@ pub fn lateral_forces(params: &Params, state: &State, steering: f32) -> (f32, f3
     (-cf * af, -cr * ar)
 }
 
+/// Front and rear tire forces (in tire frame) [N], longitudinal in x and lateral in y.
+pub fn tire_forces(params: &Params, state: &State, input: Input) -> (Vec2, Vec2) {
+    let (fy_front, fy_rear) = lateral_forces(params, state, input.steering_angle);
+    let front = Vec2::new(input.front_longitudinal_force, fy_front);
+    let rear = if input.rear_locked {
+        let (_, velocity) = axle_velocities(params, state);
+        -velocity / velocity.length().max(SLIP_SPEED_FLOOR) * params.locked_rear_force()
+    } else {
+        Vec2::new(input.rear_longitudinal_force, fy_rear)
+    };
+    (front, rear)
+}
+
 fn derivatives(p: &Params, state: &State, input: Input) -> Derivatives {
     let (lf, lr) = (p.cg_to_front_axle, p.cg_to_rear_axle);
-    let (fx_front, fx_rear) = (
-        input.front_longitudinal_force,
-        input.rear_longitudinal_force,
-    );
+    let (
+        Vec2 {
+            x: fx_front,
+            y: fy_front,
+        },
+        Vec2 {
+            x: fx_rear,
+            y: fy_rear,
+        },
+    ) = tire_forces(p, state, input);
     let Vec2 { x: vx, y: vy } = state.velocity;
     let (sin_delta, cos_delta) = input.steering_angle.sin_cos();
-    let (fy_front, fy_rear) = lateral_forces(p, state, input.steering_angle);
     let front_x = fx_front * cos_delta - fy_front * sin_delta;
     let front_y = fx_front * sin_delta + fy_front * cos_delta;
     let drag = state.velocity.normalize_or_zero() * p.drag_force(state.velocity.length());

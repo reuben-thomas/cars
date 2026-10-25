@@ -99,6 +99,24 @@ pub fn keycap(content: impl Bundle, node: Node) -> impl Bundle {
     )
 }
 
+pub fn button(content: impl Bundle) -> impl Bundle {
+    (
+        Button,
+        Hovered::default(),
+        keycap(
+            content,
+            Node {
+                min_width: px(BUTTON_SIZE),
+                min_height: px(BUTTON_SIZE),
+                padding: UiRect::horizontal(px(10)),
+                border: UiRect::all(px(BORDER_WIDTH)),
+                border_radius: BorderRadius::all(px(RADIUS)),
+                ..default()
+            },
+        ),
+    )
+}
+
 pub fn panel(node: Node) -> impl Bundle {
     (
         Node {

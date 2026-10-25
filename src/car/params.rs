@@ -18,6 +18,7 @@ impl Default for Params {
                 cg_to_front_axle: 1.3,
                 cg_to_rear_axle: 1.3,
                 cornering_coefficient: 8.0,
+                friction_coefficient: 0.8,
                 rolling_resistance: 6.0,
                 drag_coefficient: 0.35,
                 frontal_area: 2.0,

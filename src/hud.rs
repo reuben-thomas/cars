@@ -2,22 +2,13 @@ use crate::car::Car;
 use crate::keymap::{self, Action, ActionButton};
 use crate::player::Player;
 use crate::settings;
-use crate::ui::{
-    self, BORDER_WIDTH, BUTTON_SIZE, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, RADIUS, TEXT,
-    TEXT_SIZE,
-};
-use bevy::asset::RenderAssetUsages;
-use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
+use crate::ui::{self, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, TEXT, TEXT_SIZE};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui::Pressed;
-use bevy::ui_widgets::{Button, observe};
 
 const MARGIN: f32 = 16.0;
 const GAP: f32 = 4.0;
 const ARROW_SIZE: f32 = 12.0;
-const ICON_SIZE: f32 = 24.0;
-const REPOSITORY: &str = "https://github.com/reuben-thomas/cars";
 
 pub struct HudPlugin;
 
@@ -31,21 +22,7 @@ impl Plugin for HudPlugin {
 #[derive(Component)]
 struct Readout;
 
-#[derive(Component)]
-struct RepositoryLink;
-
-fn spawn(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    let github = images.add(
-        Image::from_buffer(
-            include_bytes!("../assets/github.png"),
-            ImageType::Extension("png"),
-            CompressedImageFormats::NONE,
-            true,
-            ImageSampler::Default,
-            RenderAssetUsages::RENDER_WORLD,
-        )
-        .expect("invalid github icon"),
-    );
+fn spawn(mut commands: Commands) {
     commands.spawn((
         Node {
             position_type: PositionType::Absolute,
@@ -78,13 +55,22 @@ fn spawn(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             (
                 Node {
                     justify_self: JustifySelf::End,
-                    flex_direction: FlexDirection::Column,
-                    row_gap: px(GAP),
+                    column_gap: px(GAP),
                     ..default()
                 },
                 children![
-                    arrow_button(Action::Accelerate, KeyCode::ArrowUp),
-                    arrow_button(Action::Brake, KeyCode::ArrowDown),
+                    text_button(Action::Handbrake, "(P)"),
+                    (
+                        Node {
+                            flex_direction: FlexDirection::Column,
+                            row_gap: px(GAP),
+                            ..default()
+                        },
+                        children![
+                            arrow_button(Action::Accelerate, KeyCode::ArrowUp),
+                            arrow_button(Action::Brake, KeyCode::ArrowDown),
+                        ],
+                    ),
                 ],
             ),
         ],
@@ -106,13 +92,12 @@ fn spawn(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             (
                 Node {
                     flex_shrink: 0.0,
-                    column_gap: px(GAP),
                     ..default()
                 },
-                children![
-                    text_button(Action::ToggleHelp, keymap::label(KeyCode::Slash)),
-                    repository_button(github),
-                ],
+                children![text_button(
+                    Action::ToggleHelp,
+                    keymap::label(KeyCode::Slash)
+                )],
             ),
         ],
     ));
@@ -120,70 +105,25 @@ fn spawn(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
 fn arrow_button(action: Action, key: KeyCode) -> impl Bundle {
     let rotation = ui::arrow(key).expect("not an arrow key");
-    button(action, ui::chevron(ARROW_SIZE, rotation))
+    (
+        ActionButton(action),
+        ui::button(ui::chevron(ARROW_SIZE, rotation)),
+    )
 }
 
 fn text_button(action: Action, label: impl Into<String>) -> impl Bundle {
-    button(action, ui::text(label, TEXT_SIZE, TEXT))
-}
-
-fn repository_button(icon: Handle<Image>) -> impl Bundle {
     (
-        RepositoryLink,
-        ui::Link(REPOSITORY),
-        observe(ui::open_link),
-        plain_button((
-            ImageNode::new(icon).with_color(TEXT),
-            Node {
-                width: px(ICON_SIZE),
-                height: px(ICON_SIZE),
-                ..default()
-            },
-        )),
+        ActionButton(action),
+        ui::button(ui::text(label, TEXT_SIZE, TEXT)),
     )
 }
 
-fn button(action: Action, content: impl Bundle) -> impl Bundle {
-    (ActionButton(action), plain_button(content))
-}
-
-fn plain_button(content: impl Bundle) -> impl Bundle {
-    (
-        Button,
-        Hovered::default(),
-        ui::keycap(
-            content,
-            Node {
-                min_width: px(BUTTON_SIZE),
-                min_height: px(BUTTON_SIZE),
-                padding: UiRect::horizontal(px(10)),
-                border: UiRect::all(px(BORDER_WIDTH)),
-                border_radius: BorderRadius::all(px(RADIUS)),
-                ..default()
-            },
-        ),
-    )
-}
-
-#[allow(clippy::type_complexity)]
 fn style_buttons(
     actions: Res<ButtonInput<Action>>,
-    mut buttons: Query<
-        (
-            Option<&ActionButton>,
-            Has<Pressed>,
-            &Hovered,
-            &mut BackgroundColor,
-        ),
-        Or<(With<ActionButton>, With<RepositoryLink>)>,
-    >,
+    mut buttons: Query<(&ActionButton, &Hovered, &mut BackgroundColor)>,
 ) {
-    for (action, pressed, hovered, mut background) in &mut buttons {
-        let pressed = match action {
-            Some(&ActionButton(action)) => actions.pressed(action),
-            None => pressed,
-        };
-        let color = if pressed {
+    for (&ActionButton(action), hovered, mut background) in &mut buttons {
+        let color = if actions.pressed(action) {
             KEYCAP_PRESSED
         } else if hovered.get() {
             KEYCAP_HOVERED
