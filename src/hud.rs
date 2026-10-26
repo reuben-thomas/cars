@@ -38,6 +38,7 @@ fn spawn(mut commands: Commands) {
             align_items: AlignItems::End,
             ..default()
         },
+        Pickable::IGNORE,
         GlobalZIndex(2),
         children![
             (
@@ -86,6 +87,7 @@ fn spawn(mut commands: Commands) {
             column_gap: px(GAP),
             ..default()
         },
+        Pickable::IGNORE,
         GlobalZIndex(2),
         children![
             settings::panel(),
