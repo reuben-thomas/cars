@@ -23,7 +23,7 @@ pub const BUTTON_SIZE: f32 = 48.0;
 pub const BORDER_WIDTH: f32 = 2.0;
 pub const RADIUS: f32 = 8.0;
 
-const LABEL_WIDTH: f32 = 140.0;
+const LABEL_WIDTH: f32 = 180.0;
 
 pub const SLIDER_HEIGHT: f32 = 16.0;
 pub const TRACK_HEIGHT: f32 = 4.0;

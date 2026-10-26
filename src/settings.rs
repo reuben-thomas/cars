@@ -1,11 +1,11 @@
 use crate::car::visual::debug::CarGizmos;
 use crate::keymap::{Action, ActionButton};
-use crate::ui::{self, BORDER, BORDER_WIDTH, BUTTON_SIZE, HEADING, TEXT, TEXT_SIZE};
-use crate::vehicle_config;
+use crate::ui::{self, BORDER, BORDER_WIDTH, BUTTON_SIZE, HEADING, TEXT_SIZE};
+use crate::vehicle_config::{self, Category};
 use bevy::prelude::*;
 use bevy::ui::Checked;
 
-const WIDTH: f32 = 390.0;
+const WIDTH: f32 = 430.0;
 const PADDING: f32 = 12.0;
 const SECTION_HEIGHT: f32 = 36.0;
 const ROW_GAP: f32 = 8.0;
@@ -31,7 +31,7 @@ pub fn panel() -> impl Bundle {
             ..default()
         }),
         children![ui::collapsible(
-            ui::text("Settings", TEXT_SIZE, TEXT),
+            ui::text("Settings", TEXT_SIZE, HEADING),
             BUTTON_SIZE - 2.0 * BORDER_WIDTH,
             (
                 Node {
@@ -39,10 +39,13 @@ pub fn panel() -> impl Bundle {
                     padding: UiRect::bottom(px(PADDING)),
                     ..default()
                 },
-                children![
-                    section("Simulation", simulation()),
-                    section("Vehicle Config", vehicle_config::section()),
-                ],
+                Children::spawn(SpawnWith(|body: &mut ChildSpawner| {
+                    for category in Category::ALL {
+                        body.spawn(section(category.name(), vehicle_config::section(category)));
+                    }
+                    body.spawn(section("Simulation", simulation()));
+                    body.spawn(vehicle_config::reset_button());
+                })),
             ),
         )],
     )
@@ -52,22 +55,22 @@ fn section(title: &'static str, content: impl Bundle) -> impl Bundle {
     (
         Node {
             flex_direction: FlexDirection::Column,
+            padding: UiRect::bottom(px(ROW_GAP)),
             border: UiRect::top(px(1)),
             ..default()
         },
         BorderColor::all(BORDER),
-        children![ui::collapsible(
-            ui::text(title, TEXT_SIZE, HEADING),
-            SECTION_HEIGHT,
+        children![
             (
                 Node {
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::bottom(px(ROW_GAP)),
+                    min_height: px(SECTION_HEIGHT),
+                    align_items: AlignItems::Center,
                     ..default()
                 },
-                children![content],
+                children![ui::text(title, TEXT_SIZE, HEADING)],
             ),
-        )],
+            content,
+        ],
     )
 }
 
@@ -78,7 +81,7 @@ fn simulation() -> impl Bundle {
             ..default()
         },
         children![
-            ui::label("Debug mode"),
+            ui::label("debug_mode"),
             (DebugSwitch, ActionButton(Action::ToggleDebug), ui::switch()),
         ],
     )

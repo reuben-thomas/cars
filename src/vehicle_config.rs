@@ -1,9 +1,10 @@
 use crate::car::visual::{PAINT, Paint};
 use crate::car::{Car, Params};
 use crate::player::Player;
-use crate::ui::{self, TEXT, TEXT_SIZE};
+use crate::ui::{self, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, TEXT, TEXT_SIZE};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 use bevy::ui_widgets::{Activate, SliderValue, ValueChange, observe};
 
 const VALUE_WIDTH: f32 = 100.0;
@@ -17,8 +18,38 @@ const PAINTS: [Color; 6] = [
     Color::srgb_u8(0x30, 0x34, 0x3a),
 ];
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Category {
+    Mass,
+    Friction,
+    Aerodynamics,
+    Chassis,
+    Drivetrain,
+}
+
+impl Category {
+    pub const ALL: [Category; 5] = [
+        Category::Chassis,
+        Category::Mass,
+        Category::Friction,
+        Category::Aerodynamics,
+        Category::Drivetrain,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Category::Mass => "Mass",
+            Category::Friction => "Friction",
+            Category::Aerodynamics => "Aerodynamics",
+            Category::Chassis => "Chassis",
+            Category::Drivetrain => "Drivetrain",
+        }
+    }
+}
+
 struct Field {
     label: &'static str,
+    category: Category,
     unit: &'static str,
     min: f32,
     max: f32,
@@ -27,9 +58,36 @@ struct Field {
     set: fn(&mut Params, f32),
 }
 
-const FIELDS: [Field; 12] = [
+const FIELDS: [Field; 15] = [
     Field {
-        label: "Mass",
+        label: "wheelbase",
+        category: Category::Chassis,
+        unit: "m",
+        min: 2.0,
+        max: 3.2,
+        precision: 2,
+        get: |p| p.bicycle.wheelbase(),
+        set: |p, v| {
+            let front_weight = p.bicycle.front_weight();
+            p.bicycle.set_axles(v, front_weight);
+        },
+    },
+    Field {
+        label: "front_weight",
+        category: Category::Chassis,
+        unit: "",
+        min: 0.4,
+        max: 0.6,
+        precision: 2,
+        get: |p| p.bicycle.front_weight(),
+        set: |p, v| {
+            let wheelbase = p.bicycle.wheelbase();
+            p.bicycle.set_axles(wheelbase, v);
+        },
+    },
+    Field {
+        label: "mass",
+        category: Category::Mass,
         unit: "kg",
         min: 500.0,
         max: 3000.0,
@@ -38,7 +96,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.bicycle.mass = v,
     },
     Field {
-        label: "Yaw inertia",
+        label: "yaw_inertia",
+        category: Category::Mass,
         unit: "kg m^2",
         min: 500.0,
         max: 5000.0,
@@ -47,16 +106,28 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.bicycle.yaw_inertia = v,
     },
     Field {
-        label: "Cornering coeff",
+        label: "front_cornering_coeff",
+        category: Category::Friction,
         unit: "1/rad",
         min: 1.0,
         max: 20.0,
         precision: 1,
-        get: |p| p.bicycle.cornering_coefficient,
-        set: |p, v| p.bicycle.cornering_coefficient = v,
+        get: |p| p.bicycle.front_cornering_coefficient,
+        set: |p, v| p.bicycle.front_cornering_coefficient = v,
     },
     Field {
-        label: "Friction coeff",
+        label: "rear_cornering_coeff",
+        category: Category::Friction,
+        unit: "1/rad",
+        min: 1.0,
+        max: 20.0,
+        precision: 1,
+        get: |p| p.bicycle.rear_cornering_coefficient,
+        set: |p, v| p.bicycle.rear_cornering_coefficient = v,
+    },
+    Field {
+        label: "friction_coeff",
+        category: Category::Friction,
         unit: "",
         min: 0.1,
         max: 1.5,
@@ -65,7 +136,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.bicycle.friction_coefficient = v,
     },
     Field {
-        label: "Rolling resist",
+        label: "rolling_resist",
+        category: Category::Friction,
         unit: "kg/s",
         min: 0.0,
         max: 50.0,
@@ -74,7 +146,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.bicycle.rolling_resistance = v,
     },
     Field {
-        label: "Drag coeff",
+        label: "drag_coeff",
+        category: Category::Aerodynamics,
         unit: "",
         min: 0.1,
         max: 1.0,
@@ -83,7 +156,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.bicycle.drag_coefficient = v,
     },
     Field {
-        label: "Frontal area",
+        label: "frontal_area",
+        category: Category::Aerodynamics,
         unit: "m^2",
         min: 1.0,
         max: 4.0,
@@ -92,7 +166,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.bicycle.frontal_area = v,
     },
     Field {
-        label: "Max steering",
+        label: "max_steering",
+        category: Category::Chassis,
         unit: "deg",
         min: 10.0,
         max: 45.0,
@@ -101,7 +176,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.max_steering = v.to_radians(),
     },
     Field {
-        label: "Drive force",
+        label: "drive_force",
+        category: Category::Drivetrain,
         unit: "kN",
         min: 1.0,
         max: 30.0,
@@ -110,7 +186,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.drivetrain.max_force = v * 1000.0,
     },
     Field {
-        label: "Drive rear bias",
+        label: "drive_rear_bias",
+        category: Category::Drivetrain,
         unit: "",
         min: 0.0,
         max: 1.0,
@@ -119,7 +196,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.drivetrain.rear_bias = v,
     },
     Field {
-        label: "Brake force",
+        label: "brake_force",
+        category: Category::Drivetrain,
         unit: "kN",
         min: 1.0,
         max: 30.0,
@@ -128,7 +206,8 @@ const FIELDS: [Field; 12] = [
         set: |p, v| p.brakes.max_force = v * 1000.0,
     },
     Field {
-        label: "Brake rear bias",
+        label: "brake_rear_bias",
+        category: Category::Drivetrain,
         unit: "",
         min: 0.0,
         max: 1.0,
@@ -144,7 +223,11 @@ impl Plugin for VehicleConfigPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (sync_sliders, (update_values, style_swatches)).chain(),
+            (
+                sync_sliders,
+                (update_values, style_swatches, style_reset_button),
+            )
+                .chain(),
         );
     }
 }
@@ -158,20 +241,55 @@ struct FieldValue(usize);
 #[derive(Component, Clone, Copy)]
 struct Swatch(Color);
 
-pub fn section() -> impl Bundle {
+#[derive(Component)]
+struct ResetButton;
+
+pub fn section(category: Category) -> impl Bundle {
     (
         Node {
             flex_direction: FlexDirection::Column,
             row_gap: px(8),
             ..default()
         },
-        Children::spawn(SpawnWith(|body: &mut ChildSpawner| {
-            body.spawn(paint_row());
-            for index in 0..FIELDS.len() {
-                body.spawn(field_row(index));
+        Children::spawn(SpawnWith(move |body: &mut ChildSpawner| {
+            if category == Category::Chassis {
+                body.spawn(paint_row());
+            }
+            for (index, field) in FIELDS.iter().enumerate() {
+                if field.category == category {
+                    body.spawn(field_row(index));
+                }
             }
         })),
     )
+}
+
+pub fn reset_button() -> impl Bundle {
+    (
+        ResetButton,
+        ui::button(ui::text("Reset", TEXT_SIZE, TEXT)),
+        observe(reset),
+    )
+}
+
+fn reset(_: On<Activate>, mut car: Single<(&mut Car, &mut Paint), With<Player>>) {
+    let (car, paint) = &mut *car;
+    car.set_params(Params::default());
+    paint.set_if_neq(Paint::default());
+}
+
+fn style_reset_button(
+    mut button: Single<(&Hovered, Has<Pressed>, &mut BackgroundColor), With<ResetButton>>,
+) {
+    let (hovered, pressed, background) = &mut *button;
+    let color = if *pressed {
+        KEYCAP_PRESSED
+    } else if hovered.get() {
+        KEYCAP_HOVERED
+    } else {
+        KEYCAP
+    };
+    background.set_if_neq(BackgroundColor(color));
 }
 
 fn paint_row() -> impl Bundle {
@@ -186,7 +304,7 @@ fn paint_row() -> impl Bundle {
             ..default()
         },
         children![
-            ui::label("Colour"),
+            ui::label("colour"),
             (
                 Node {
                     flex_wrap: FlexWrap::Wrap,

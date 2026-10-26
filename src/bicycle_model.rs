@@ -20,8 +20,8 @@ pub struct Params {
     pub cg_to_front_axle: f32,
     /// Distance from CG to rear axle [m].
     pub cg_to_rear_axle: f32,
-    /// Cornering stiffness per unit axle load [1/rad].
-    pub cornering_coefficient: f32,
+    pub front_cornering_coefficient: f32,
+    pub rear_cornering_coefficient: f32,
     /// Tire-road sliding friction coefficient, mu.
     pub friction_coefficient: f32,
     /// Rolling resistance [kg/s].
@@ -35,6 +35,15 @@ pub struct Params {
 impl Params {
     pub const fn wheelbase(&self) -> f32 {
         self.cg_to_front_axle + self.cg_to_rear_axle
+    }
+
+    pub const fn front_weight(&self) -> f32 {
+        self.cg_to_rear_axle / self.wheelbase()
+    }
+
+    pub const fn set_axles(&mut self, wheelbase: f32, front_weight: f32) {
+        self.cg_to_front_axle = wheelbase * (1.0 - front_weight);
+        self.cg_to_rear_axle = wheelbase * front_weight;
     }
 
     /// Aerodynamic drag force opposing a signed speed [m/s] [N].
@@ -60,8 +69,8 @@ impl Params {
     pub const fn cornering_stiffness(&self) -> (f32, f32) {
         let (front_load, rear_load) = self.axle_loads();
         (
-            front_load * self.cornering_coefficient,
-            rear_load * self.cornering_coefficient,
+            front_load * self.front_cornering_coefficient,
+            rear_load * self.rear_cornering_coefficient,
         )
     }
 

@@ -160,6 +160,8 @@ pub(super) fn steer_wheels(
 ) {
     for (wheel, child_of, mut transform) in &mut wheels {
         if let Ok(car) = cars.get(child_of.parent()) {
+            let centre = to_screen(car.axle_position(wheel.axle) + Vec2::Y * wheel.centre.y);
+            transform.translation = centre.extend(transform.translation.z);
             transform.rotation = Quat::from_rotation_z(car.wheel_rotation(wheel.axle).as_radians());
         }
     }
