@@ -254,7 +254,7 @@ fn draw_velocity(gizmos: &mut Gizmos<CarGizmos>, car: &Car, arrow_time: f32) {
 
 fn draw_chassis(gizmos: &mut Gizmos<CarGizmos>, car: &Car, dimensions: &Dimensions) {
     let pose = car.pose();
-    let chassis = dimensions.chassis();
+    let chassis = dimensions.chassis(car);
     rectangle(
         gizmos,
         pose.transform_point(chassis.center()),

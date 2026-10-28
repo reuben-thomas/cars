@@ -1,11 +1,11 @@
-use crate::car::visual::{PAINT, Paint};
-use crate::car::{Car, Params};
+use crate::car::visual::{Dimensions, PAINT, Paint};
+use crate::car::{Car, Params, Style};
 use crate::player::Player;
 use crate::ui::{self, KEYCAP, KEYCAP_HOVERED, KEYCAP_PRESSED, TEXT, TEXT_SIZE};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::Pressed;
-use bevy::ui_widgets::{Activate, SliderValue, ValueChange, observe};
+use bevy::ui_widgets::{Activate, Button, SliderValue, ValueChange, observe};
 
 const VALUE_WIDTH: f32 = 100.0;
 
@@ -54,20 +54,20 @@ struct Field {
     min: f32,
     max: f32,
     precision: i32,
-    get: fn(&Params) -> f32,
-    set: fn(&mut Params, f32),
+    get: fn(&Params, &Dimensions) -> f32,
+    set: fn(&mut Params, &mut Dimensions, f32),
 }
 
-const FIELDS: [Field; 15] = [
+const FIELDS: [Field; 16] = [
     Field {
         label: "wheelbase",
         category: Category::Chassis,
         unit: "m",
         min: 2.0,
-        max: 3.2,
+        max: 7.0,
         precision: 2,
-        get: |p| p.bicycle.wheelbase(),
-        set: |p, v| {
+        get: |p, _| p.bicycle.wheelbase(),
+        set: |p, _, v| {
             let front_weight = p.bicycle.front_weight();
             p.bicycle.set_axles(v, front_weight);
         },
@@ -79,31 +79,41 @@ const FIELDS: [Field; 15] = [
         min: 0.4,
         max: 0.6,
         precision: 2,
-        get: |p| p.bicycle.front_weight(),
-        set: |p, v| {
+        get: |p, _| p.bicycle.front_weight(),
+        set: |p, _, v| {
             let wheelbase = p.bicycle.wheelbase();
             p.bicycle.set_axles(wheelbase, v);
         },
+    },
+    Field {
+        label: "width",
+        category: Category::Chassis,
+        unit: "m",
+        min: 1.4,
+        max: 3.0,
+        precision: 2,
+        get: |_, d| d.chassis_width,
+        set: |_, d, v| d.chassis_width = v,
     },
     Field {
         label: "mass",
         category: Category::Mass,
         unit: "kg",
         min: 500.0,
-        max: 3000.0,
+        max: 15000.0,
         precision: 0,
-        get: |p| p.bicycle.mass,
-        set: |p, v| p.bicycle.mass = v,
+        get: |p, _| p.bicycle.mass,
+        set: |p, _, v| p.bicycle.mass = v,
     },
     Field {
         label: "yaw_inertia",
         category: Category::Mass,
-        unit: "kg m^2",
-        min: 500.0,
-        max: 5000.0,
-        precision: 0,
-        get: |p| p.bicycle.yaw_inertia,
-        set: |p, v| p.bicycle.yaw_inertia = v,
+        unit: "t m^2",
+        min: 0.5,
+        max: 200.0,
+        precision: 1,
+        get: |p, _| p.bicycle.yaw_inertia / 1000.0,
+        set: |p, _, v| p.bicycle.yaw_inertia = v * 1000.0,
     },
     Field {
         label: "front_cornering_coeff",
@@ -112,8 +122,8 @@ const FIELDS: [Field; 15] = [
         min: 1.0,
         max: 20.0,
         precision: 1,
-        get: |p| p.bicycle.front_cornering_coefficient,
-        set: |p, v| p.bicycle.front_cornering_coefficient = v,
+        get: |p, _| p.bicycle.front_cornering_coefficient,
+        set: |p, _, v| p.bicycle.front_cornering_coefficient = v,
     },
     Field {
         label: "rear_cornering_coeff",
@@ -122,8 +132,8 @@ const FIELDS: [Field; 15] = [
         min: 1.0,
         max: 20.0,
         precision: 1,
-        get: |p| p.bicycle.rear_cornering_coefficient,
-        set: |p, v| p.bicycle.rear_cornering_coefficient = v,
+        get: |p, _| p.bicycle.rear_cornering_coefficient,
+        set: |p, _, v| p.bicycle.rear_cornering_coefficient = v,
     },
     Field {
         label: "friction_coeff",
@@ -132,8 +142,8 @@ const FIELDS: [Field; 15] = [
         min: 0.1,
         max: 1.5,
         precision: 2,
-        get: |p| p.bicycle.friction_coefficient,
-        set: |p, v| p.bicycle.friction_coefficient = v,
+        get: |p, _| p.bicycle.friction_coefficient,
+        set: |p, _, v| p.bicycle.friction_coefficient = v,
     },
     Field {
         label: "rolling_resist",
@@ -142,8 +152,8 @@ const FIELDS: [Field; 15] = [
         min: 0.0,
         max: 50.0,
         precision: 1,
-        get: |p| p.bicycle.rolling_resistance,
-        set: |p, v| p.bicycle.rolling_resistance = v,
+        get: |p, _| p.bicycle.rolling_resistance,
+        set: |p, _, v| p.bicycle.rolling_resistance = v,
     },
     Field {
         label: "drag_coeff",
@@ -152,18 +162,18 @@ const FIELDS: [Field; 15] = [
         min: 0.1,
         max: 1.0,
         precision: 2,
-        get: |p| p.bicycle.drag_coefficient,
-        set: |p, v| p.bicycle.drag_coefficient = v,
+        get: |p, _| p.bicycle.drag_coefficient,
+        set: |p, _, v| p.bicycle.drag_coefficient = v,
     },
     Field {
         label: "frontal_area",
         category: Category::Aerodynamics,
         unit: "m^2",
         min: 1.0,
-        max: 4.0,
+        max: 10.0,
         precision: 1,
-        get: |p| p.bicycle.frontal_area,
-        set: |p, v| p.bicycle.frontal_area = v,
+        get: |p, _| p.bicycle.frontal_area,
+        set: |p, _, v| p.bicycle.frontal_area = v,
     },
     Field {
         label: "max_steering",
@@ -172,18 +182,18 @@ const FIELDS: [Field; 15] = [
         min: 10.0,
         max: 45.0,
         precision: 0,
-        get: |p| p.max_steering.to_degrees(),
-        set: |p, v| p.max_steering = v.to_radians(),
+        get: |p, _| p.max_steering.to_degrees(),
+        set: |p, _, v| p.max_steering = v.to_radians(),
     },
     Field {
         label: "drive_force",
         category: Category::Drivetrain,
         unit: "kN",
         min: 1.0,
-        max: 30.0,
+        max: 60.0,
         precision: 1,
-        get: |p| p.drivetrain.max_force / 1000.0,
-        set: |p, v| p.drivetrain.max_force = v * 1000.0,
+        get: |p, _| p.drivetrain.max_force / 1000.0,
+        set: |p, _, v| p.drivetrain.max_force = v * 1000.0,
     },
     Field {
         label: "drive_rear_bias",
@@ -192,18 +202,18 @@ const FIELDS: [Field; 15] = [
         min: 0.0,
         max: 1.0,
         precision: 2,
-        get: |p| p.drivetrain.rear_bias,
-        set: |p, v| p.drivetrain.rear_bias = v,
+        get: |p, _| p.drivetrain.rear_bias,
+        set: |p, _, v| p.drivetrain.rear_bias = v,
     },
     Field {
         label: "brake_force",
         category: Category::Drivetrain,
         unit: "kN",
         min: 1.0,
-        max: 30.0,
+        max: 80.0,
         precision: 1,
-        get: |p| p.brakes.max_force / 1000.0,
-        set: |p, v| p.brakes.max_force = v * 1000.0,
+        get: |p, _| p.brakes.max_force / 1000.0,
+        set: |p, _, v| p.brakes.max_force = v * 1000.0,
     },
     Field {
         label: "brake_rear_bias",
@@ -212,8 +222,8 @@ const FIELDS: [Field; 15] = [
         min: 0.0,
         max: 1.0,
         precision: 2,
-        get: |p| p.brakes.rear_bias,
-        set: |p, v| p.brakes.rear_bias = v,
+        get: |p, _| p.brakes.rear_bias,
+        set: |p, _, v| p.brakes.rear_bias = v,
     },
 ];
 
@@ -225,7 +235,12 @@ impl Plugin for VehicleConfigPlugin {
             Update,
             (
                 sync_sliders,
-                (update_values, style_swatches, style_reset_button),
+                (
+                    update_values,
+                    style_swatches,
+                    style_style_buttons,
+                    style_reset_button,
+                ),
             )
                 .chain(),
         );
@@ -241,6 +256,9 @@ struct FieldValue(usize);
 #[derive(Component, Clone, Copy)]
 struct Swatch(Color);
 
+#[derive(Component, Clone, Copy)]
+struct StyleButton(Style);
+
 #[derive(Component)]
 struct ResetButton;
 
@@ -253,6 +271,7 @@ pub fn section(category: Category) -> impl Bundle {
         },
         Children::spawn(SpawnWith(move |body: &mut ChildSpawner| {
             if category == Category::Chassis {
+                body.spawn(style_row());
                 body.spawn(paint_row());
             }
             for (index, field) in FIELDS.iter().enumerate() {
@@ -272,9 +291,14 @@ pub fn reset_button() -> impl Bundle {
     )
 }
 
-fn reset(_: On<Activate>, mut car: Single<(&mut Car, &mut Paint), With<Player>>) {
-    let (car, paint) = &mut *car;
-    car.set_params(Params::default());
+fn reset(
+    _: On<Activate>,
+    mut car: Single<(&mut Car, &mut Dimensions, &mut Paint, &Style), With<Player>>,
+) {
+    let (car, dimensions, paint, style) = &mut *car;
+    let style = **style;
+    car.set_params(Params::preset(style));
+    dimensions.set_if_neq(Dimensions::for_style(style));
     paint.set_if_neq(Paint::default());
 }
 
@@ -290,6 +314,72 @@ fn style_reset_button(
         KEYCAP
     };
     background.set_if_neq(BackgroundColor(color));
+}
+
+fn style_row() -> impl Bundle {
+    let buttons = SpawnWith(|row: &mut ChildSpawner| {
+        for style in Style::ALL {
+            row.spawn((
+                StyleButton(style),
+                Button,
+                Hovered::default(),
+                ui::keycap(
+                    ui::text(style.name(), TEXT_SIZE, TEXT),
+                    Node {
+                        min_height: px(ui::SWATCH_SIZE),
+                        padding: UiRect::horizontal(px(10)),
+                        border: UiRect::all(px(2)),
+                        border_radius: BorderRadius::all(px(4)),
+                        ..default()
+                    },
+                ),
+                observe(select_style),
+            ));
+        }
+    });
+    (
+        Node {
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        children![
+            ui::label("style"),
+            (
+                Node {
+                    flex_wrap: FlexWrap::Wrap,
+                    column_gap: px(6),
+                    row_gap: px(6),
+                    ..default()
+                },
+                Children::spawn(buttons),
+            ),
+        ],
+    )
+}
+
+fn select_style(
+    activate: On<Activate>,
+    buttons: Query<&StyleButton>,
+    mut car: Single<(&mut Car, &mut Dimensions, &mut Style), With<Player>>,
+) {
+    let Ok(&StyleButton(style)) = buttons.get(activate.entity) else {
+        return;
+    };
+    let (car, dimensions, current) = &mut *car;
+    if **current != style {
+        **current = style;
+        car.set_params(Params::preset(style));
+        dimensions.set_if_neq(Dimensions::for_style(style));
+    }
+}
+
+fn style_style_buttons(
+    style: Single<&Style, With<Player>>,
+    mut buttons: Query<(&StyleButton, &Hovered, &mut BorderColor)>,
+) {
+    for (&StyleButton(button), hovered, mut border) in &mut buttons {
+        border.set_if_neq(ui::swatch_border(**style == button, hovered.get()));
+    }
 }
 
 fn paint_row() -> impl Bundle {
@@ -367,23 +457,27 @@ fn field_row(index: usize) -> impl Bundle {
 fn set_field(
     change: On<ValueChange<f32>>,
     sliders: Query<&FieldSlider>,
-    mut car: Single<&mut Car, With<Player>>,
+    mut car: Single<(&mut Car, &mut Dimensions), With<Player>>,
 ) {
     let Ok(&FieldSlider(index)) = sliders.get(change.source) else {
         return;
     };
+    let (car, dimensions) = &mut *car;
     let mut params = car.params().clone();
-    (FIELDS[index].set)(&mut params, change.value);
+    let mut new_dimensions = dimensions.clone();
+    (FIELDS[index].set)(&mut params, &mut new_dimensions, change.value);
     car.set_params(params);
+    dimensions.set_if_neq(new_dimensions);
 }
 
 fn sync_sliders(
     mut commands: Commands,
-    car: Single<&Car, (With<Player>, Changed<Car>)>,
+    car: Single<(&Car, &Dimensions), With<Player>>,
     sliders: Query<(Entity, &FieldSlider, &SliderValue)>,
 ) {
+    let (car, dimensions) = *car;
     for (entity, &FieldSlider(index), value) in &sliders {
-        let current = (FIELDS[index].get)(car.params());
+        let current = (FIELDS[index].get)(car.params(), dimensions);
         if value.0 != current {
             commands.entity(entity).insert(SliderValue(current));
         }

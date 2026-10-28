@@ -38,8 +38,28 @@ pub enum Axle {
     Rear,
 }
 
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Style {
+    #[default]
+    Car,
+    Van,
+    Bus,
+}
+
+impl Style {
+    pub const ALL: [Style; 3] = [Style::Car, Style::Van, Style::Bus];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Style::Car => "car",
+            Style::Van => "van",
+            Style::Bus => "bus",
+        }
+    }
+}
+
 #[derive(Component, Clone, Debug)]
-#[require(Transform, Visibility)]
+#[require(Transform, Visibility, Style)]
 pub struct Car {
     params: Params,
     bicycle: AckermannBicycle,

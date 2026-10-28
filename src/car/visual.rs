@@ -1,7 +1,7 @@
 mod body;
 pub mod debug;
 
-use super::{Axle, Car};
+use super::{Axle, Car, Style};
 use crate::view::to_screen;
 use bevy::prelude::*;
 
@@ -24,16 +24,12 @@ impl Plugin for CarBodyPlugin {
     }
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, PartialEq)]
 #[require(Paint)]
 pub struct Dimensions {
     pub chassis_width: f32,
-    pub cg_to_chassis_front: f32,
-    pub cg_to_chassis_rear: f32,
-    /// Distance between the front wheel centres [m].
-    pub front_track: f32,
-    /// Distance between the rear wheel centres [m].
-    pub rear_track: f32,
+    pub front_overhang: f32,
+    pub rear_overhang: f32,
     /// Wheel radius [m].
     pub wheel_radius: f32,
     /// Wheel width [m].
@@ -42,15 +38,7 @@ pub struct Dimensions {
 
 impl Default for Dimensions {
     fn default() -> Self {
-        Self {
-            chassis_width: 1.85,
-            cg_to_chassis_front: 2.3,
-            cg_to_chassis_rear: 2.4,
-            front_track: 1.75,
-            rear_track: 1.75,
-            wheel_radius: 0.33,
-            wheel_width: 0.2,
-        }
+        Self::for_style(Style::Car)
     }
 }
 
@@ -70,12 +58,38 @@ pub struct Wheel {
 }
 
 impl Dimensions {
-    pub fn chassis(&self) -> Rect {
+    pub const fn for_style(style: Style) -> Self {
+        match style {
+            Style::Car => Self {
+                chassis_width: 1.85,
+                front_overhang: 1.0,
+                rear_overhang: 1.1,
+                wheel_radius: 0.33,
+                wheel_width: 0.2,
+            },
+            Style::Van => Self {
+                chassis_width: 2.0,
+                front_overhang: 0.9,
+                rear_overhang: 1.0,
+                wheel_radius: 0.35,
+                wheel_width: 0.22,
+            },
+            Style::Bus => Self {
+                chassis_width: 2.55,
+                front_overhang: 2.6,
+                rear_overhang: 3.4,
+                wheel_radius: 0.5,
+                wheel_width: 0.3,
+            },
+        }
+    }
+
+    pub fn chassis(&self, car: &Car) -> Rect {
         let half_width = self.chassis_width / 2.0;
         Rect::new(
-            -self.cg_to_chassis_rear,
+            car.axle_position(Axle::Rear).x - self.rear_overhang,
             -half_width,
-            self.cg_to_chassis_front,
+            car.axle_position(Axle::Front).x + self.front_overhang,
             half_width,
         )
     }
@@ -84,17 +98,14 @@ impl Dimensions {
         Vec2::new(2.0 * self.wheel_radius, self.wheel_width)
     }
 
-    pub fn track(&self, axle: Axle) -> f32 {
-        match axle {
-            Axle::Front => self.front_track,
-            Axle::Rear => self.rear_track,
-        }
+    pub fn track(&self) -> f32 {
+        self.chassis_width - self.wheel_width
     }
 
     pub fn wheels(&self, car: &Car) -> [Wheel; 4] {
         let wheel = |axle, side: f32| Wheel {
             axle,
-            centre: car.axle_position(axle) + Vec2::Y * side * self.track(axle) / 2.0,
+            centre: car.axle_position(axle) + Vec2::Y * side * self.track() / 2.0,
         };
         [
             wheel(Axle::Front, 1.0),

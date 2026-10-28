@@ -1,5 +1,5 @@
 use super::{Dimensions, Paint, Wheel};
-use crate::car::{Car, Controls};
+use crate::car::{Axle, Car, Controls, Style};
 use crate::view::to_screen;
 use bevy::prelude::*;
 
@@ -36,9 +36,23 @@ impl Lamp {
 
 mod drawing {
     use super::Lamp;
+    use crate::car::Style;
     use bevy::prelude::*;
 
-    pub const CHASSIS: Rect = rect(-180.0, 0.0, 180.0, 680.0);
+    pub struct Drawing {
+        pub chassis: Rect,
+        pub parts: &'static [Part],
+    }
+
+    impl Drawing {
+        pub const fn for_style(style: Style) -> &'static Drawing {
+            match style {
+                Style::Car => &CAR,
+                Style::Van => &VAN,
+                Style::Bus => &BUS,
+            }
+        }
+    }
 
     pub struct Part {
         pub rect: Rect,
@@ -57,14 +71,42 @@ mod drawing {
         }
     }
 
-    pub const PARTS: [Part; 6] = [
-        painted(part(-180.0, 0.0, 180.0, 680.0, Color::NONE, 0.1)),
-        part(-150.0, 180.0, 150.0, 640.0, super::TRIM, 0.2),
-        part(-150.0, 320.0, 150.0, 580.0, super::ROOF, 0.3),
-        mirrored(lamp(100.0, 0.0, 165.0, 35.0, Lamp::Head)),
-        mirrored(lamp(100.0, 35.0, 165.0, 60.0, Lamp::Indicator)),
-        lamp(-180.0, 665.0, 180.0, 680.0, Lamp::Tail),
-    ];
+    const CAR: Drawing = Drawing {
+        chassis: rect(-180.0, 0.0, 180.0, 680.0),
+        parts: &[
+            painted(part(-180.0, 0.0, 180.0, 680.0, Color::NONE, 0.1)),
+            part(-150.0, 180.0, 150.0, 640.0, super::TRIM, 0.2),
+            part(-150.0, 320.0, 150.0, 580.0, super::ROOF, 0.3),
+            mirrored(lamp(100.0, 0.0, 165.0, 35.0, Lamp::Head)),
+            mirrored(lamp(100.0, 35.0, 165.0, 60.0, Lamp::Indicator)),
+            mirrored(lamp(100.0, 645.0, 165.0, 680.0, Lamp::Tail)),
+        ],
+    };
+
+    const VAN: Drawing = Drawing {
+        chassis: rect(-180.0, 0.0, 180.0, 940.0),
+        parts: &[
+            painted(part(-180.0, 0.0, 180.0, 940.0, Color::NONE, 0.1)),
+            part(-150.0, 110.0, 150.0, 260.0, super::TRIM, 0.2),
+            part(-165.0, 230.0, 165.0, 900.0, super::ROOF, 0.3),
+            mirrored(lamp(100.0, 0.0, 165.0, 35.0, Lamp::Head)),
+            mirrored(lamp(100.0, 35.0, 165.0, 60.0, Lamp::Indicator)),
+            mirrored(lamp(100.0, 905.0, 165.0, 940.0, Lamp::Tail)),
+        ],
+    };
+
+    const BUS: Drawing = Drawing {
+        chassis: rect(-180.0, 0.0, 180.0, 1700.0),
+        parts: &[
+            painted(part(-180.0, 0.0, 180.0, 1700.0, Color::NONE, 0.1)),
+            part(-160.0, 70.0, 160.0, 170.0, super::TRIM, 0.2),
+            part(-165.0, 160.0, 165.0, 1660.0, super::ROOF, 0.3),
+            part(-110.0, 600.0, 110.0, 900.0, super::TRIM, 0.4),
+            mirrored(lamp(100.0, 0.0, 165.0, 35.0, Lamp::Head)),
+            mirrored(lamp(100.0, 35.0, 165.0, 60.0, Lamp::Indicator)),
+            mirrored(lamp(100.0, 1665.0, 165.0, 1700.0, Lamp::Tail)),
+        ],
+    };
 
     const fn rect(left: f32, top: f32, right: f32, bottom: f32) -> Rect {
         Rect {
@@ -106,8 +148,8 @@ mod drawing {
     }
 }
 
-fn from_drawing(chassis: Rect, point: Vec2) -> Vec2 {
-    let fraction = (point - drawing::CHASSIS.min) / drawing::CHASSIS.size();
+fn from_drawing(drawing: Rect, chassis: Rect, point: Vec2) -> Vec2 {
+    let fraction = (point - drawing.min) / drawing.size();
     Vec2::new(
         chassis.max.x - fraction.y * chassis.width(),
         chassis.max.y - fraction.x * chassis.height(),
@@ -121,27 +163,48 @@ fn sprite(rect: Rect, color: Color, z: f32) -> (Sprite, Transform) {
     )
 }
 
-type BodyChanged = Or<(Changed<Dimensions>, Changed<Paint>)>;
+#[derive(Component, PartialEq)]
+pub(super) struct DrawnAxles(Vec2);
 
-pub(super) fn spawn(
-    mut commands: Commands,
-    cars: Query<(Entity, &Car, &Dimensions, &Paint), BodyChanged>,
-) {
-    for (entity, car, dimensions, paint) in &cars {
-        let chassis = dimensions.chassis();
+type BodyQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Car,
+        Ref<'static, Dimensions>,
+        Ref<'static, Paint>,
+        Ref<'static, Style>,
+        Option<&'static DrawnAxles>,
+    ),
+>;
+
+pub(super) fn spawn(mut commands: Commands, cars: BodyQuery) {
+    for (entity, car, dimensions, paint, style, drawn) in &cars {
+        let axles = DrawnAxles(Vec2::new(
+            car.axle_position(Axle::Front).x,
+            car.axle_position(Axle::Rear).x,
+        ));
+        let changed = dimensions.is_changed() || paint.is_changed() || style.is_changed();
+        if !changed && drawn == Some(&axles) {
+            continue;
+        }
+        let chassis = dimensions.chassis(car);
+        let drawing = drawing::Drawing::for_style(*style);
         commands
             .entity(entity)
+            .insert(axles)
             .despawn_related::<Children>()
             .with_children(|parent| {
                 for wheel in dimensions.wheels(car) {
                     let rect = Rect::from_center_size(wheel.centre, dimensions.wheel_size());
                     parent.spawn((wheel, sprite(rect, TRIM, 0.0)));
                 }
-                for part in drawing::PARTS {
+                for part in drawing.parts {
                     for rect in part.rects() {
                         let rect = Rect::from_corners(
-                            from_drawing(chassis, rect.min),
-                            from_drawing(chassis, rect.max),
+                            from_drawing(drawing.chassis, chassis, rect.min),
+                            from_drawing(drawing.chassis, chassis, rect.max),
                         );
                         let color = if part.painted { paint.0 } else { part.color };
                         let mut part_entity = parent.spawn(sprite(rect, color, part.z));
@@ -160,8 +223,6 @@ pub(super) fn steer_wheels(
 ) {
     for (wheel, child_of, mut transform) in &mut wheels {
         if let Ok(car) = cars.get(child_of.parent()) {
-            let centre = to_screen(car.axle_position(wheel.axle) + Vec2::Y * wheel.centre.y);
-            transform.translation = centre.extend(transform.translation.z);
             transform.rotation = Quat::from_rotation_z(car.wheel_rotation(wheel.axle).as_radians());
         }
     }
